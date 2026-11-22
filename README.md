@@ -146,6 +146,20 @@ The web interface for phones and tablets and the start-up self-test messages are
 | **Memo** | Note for the operator: only for show; GO skips it (the playhead never stops on a Memo) |
 | **Link** | Repeats another cue (the *original*) at another point of the cue list or in a PANEL/GRID, exactly as it is: type, file, times, trigger, pre-wait, volumes, matrix, presets, effects… all come from the original, so changing the original changes all its links. The only setting is the original (Link tab, with “Go to the original”): it cannot be a group or another link. A link has its own playback, so it can play even together with the original; MIDI, OSC, hotkey and event triggers stay with the original only. Create it with **Cue › Create link to the selected cue** (Ctrl+L), the list's right-click menu or “New cue › Link” (it points at the selected cue), then move it where needed. Deleting an original that has links asks whether to delete the links too or to point them at another cue. The original's Base tab shows how many links it has |
 
+### Find and edit (batch changes, enable / disable)
+
+**Cue › Find and edit…** (Ctrl+Shift+F) searches the whole show (all PANELs and GRIDs of the active version) by
+text (number, name, notes, file name, text), **type**, **list** and **state** (enabled / disabled). The found cues
+are listed ticked (double-click shows one in its list); untick the ones to leave out. To the ticked cues you can
+apply: **level ±dB** (audio and video), **fade in / fade out** (audio, video, images, PDF; for a video with linked
+fades also the picture fades), **delay (pre-wait)**, **layer** (visual cues), **Enable** and **Disable**. Links
+keep the values of their original (only Enable/Disable applies to them). Every “Apply” is a single step of
+Undo.
+
+Enable/Disable turns it into a quick way to manage **variants of the same show**: write a tag in the notes of the
+cues that belong to a variant (e.g. “AD” for the audio-described performance, “MAT” for the school matinée),
+search it and disable or enable them all together.
+
 ### Disabling cues, groups and PANELs
 
 A cue, a group or a PANEL can be **disabled**: it stays in the show (and can be edited) but nothing starts it —
@@ -499,6 +513,12 @@ paused or stopped one by one. Next to the bar of each cue with audio there is a 
 cues, two for stereo and multichannel; scale −60…0 dBFS, green / yellow above −9 dB / red above −1 dB): it
 measures the cue's audio with level, fades, live trim and master volume.
 
+**Active cues panel options**: the **⚙** button sets the **row size** (compact, normal, large, very large — for
+a console screen seen from far away) and the filters **Hide groups** (their cues are still shown) and **Only
+audio, video, images, PDF and texts**. **⧉** detaches the panel into a **separate window** (e.g. on the second
+monitor); closing that window, or the “dock” link left in its place, puts it back. Size, filters, window position
+and detached state are remembered on this computer.
+
 ## Waveform editor
 
 Audio and video cues have the same editor in the “Times and loop” tab (its height is about 60% of the old one):
@@ -691,6 +711,21 @@ the versions — is **kept when saving**, so the show can go back to the newer C
   `~/.local/share/cuevivo/.senza-titolo.cueshow.autosave` for a show never saved.
   After a crash, on reopening Cuevivo offers to recover it. The autosave is deleted when you save or close
   normally.
+
+### Earlier copies of the show
+
+At every save Cuevivo keeps a dated copy of the version being overwritten (the last 30; a save without changes
+does not make a copy) in the hidden folder `.name.cueshow.snapshots` next to the show (or in the program's data
+folder if that one is not writable). **File › Earlier copies of the show…** lists them with date, number of cues
+and size: **Restore this copy** brings the show back to it (the show stays to be saved, and the current file
+becomes an earlier copy in its turn); **Open the folder** shows the files.
+
+### Cue sheet
+
+**File › Export cue sheet (PDF / CSV)…** writes all the lists of the active version with the same columns as the
+cue list (number, type, name, file/target, delay, duration, start) plus notes, markers and disabled cues: a
+**PDF** (A4 landscape, a table per list, disabled cues in grey) to print for stage management, or a **CSV** with
+“;” separator (opens directly in Excel/LibreOffice with Italian settings).
 
 ## Undo, redo and history
 

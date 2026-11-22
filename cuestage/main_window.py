@@ -19,7 +19,7 @@ from .model import (
     CUE_TYPES, MIN_DB, TYPE_LABELS, Show, db_to_lin, )
 from .remote import MidiInput, OscServer
 from .ui_crop import EDIT_KEY
-from .ui_cuelist import C_PFL, C_STATE, ActivePanel, CueTableModel, PflDelegate, StateDelegate
+from .ui_cuelist import C_PFL, C_STATE, CueTableModel, PflDelegate, StateDelegate
 from .ui_dialogs import HelpDialog, SettingsDialog
 from .ui_inspector import Inspector
 from .video_output import Compositor, OutputPreview
@@ -35,6 +35,7 @@ from .window.playback import PlaybackMixin
 from .window.remote import RemoteMixin
 from .window.video import VideoMixin
 from .window.web import WebMixin
+from .window.tools import ToolsMixin
 
 FILE_FILTER = f"Show {APP_NAME} (*.cueshow);;JSON (*.json);;Tutti i file (*)"
 AUTOSAVE_SECONDS = 5
@@ -130,7 +131,7 @@ class _BarScroll(QScrollArea):
 
 
 class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, GroupsMixin, GridMixin, ListsMixin,
-                 RemoteMixin, WebMixin, VideoMixin, FilesMixin, HistoryMixin, QMainWindow):
+                 RemoteMixin, WebMixin, VideoMixin, FilesMixin, HistoryMixin, ToolsMixin, QMainWindow):
     def __init__(self, path=None):
         super().__init__()
         from .rt import install as _rt_install
@@ -200,6 +201,8 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
 
         self._history_init()
         self._build_ui()
+        if str(self.qs.value("active_floating", "false")).lower() in ("true", "1"):
+            QTimer.singleShot(0, self.float_active)       # cue attive staccate all'ultima chiusura
         self._build_menus()
         self._watch_screens()                # proiettori collegati o staccati con Cuevivo aperto
         self._build_shortcuts()
@@ -497,15 +500,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         right = QWidget()
         rv = QVBoxLayout(right)
         rv.setContentsMargins(0, 0, 0, 0)
-        rv.addWidget(QLabel(tr("Cue attive")))
-        self.active = ActivePanel(self.ctrl)
-        self.active.stopRequested.connect(lambda cid: self.ctrl.stop_cue(cid, float(self.show_data.settings.get("stop_fade", 0.3))))
-        self.active.pauseRequested.connect(self._toggle_pause_cue)
-        self.active.showCueRequested.connect(self.reveal_cue)
-        sa = QScrollArea()
-        sa.setWidget(self.active)
-        sa.setWidgetResizable(True)
-        rv.addWidget(sa, 2)
+        self._build_active_area(rv)           # cue attive (dimensione, filtri, finestra separata)
         rv.addWidget(QLabel(tr("Anteprima uscita video")))
         self.preview = OutputPreview(self.comp, self._output_aspect)
         self.preview.selected_fn = self._current_cue
@@ -634,8 +629,10 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         add(m, tr("Export bundle…"), lambda: self.export_bundle())
         add(m, tr("Import bundle…"), lambda: self.import_bundle())
         add(m, tr("Trova file mancanti…"), lambda: self.missing_files_dialog())
+        add(m, tr("Esporta cue sheet (PDF / CSV)…"), lambda: self.export_cue_sheet())
         m.addSeparator()
         add(m, tr("Versioni dello show…"), self.versions_dialog, "Ctrl+Alt+V")
+        add(m, tr("Copie precedenti dello show…"), self.snapshots_dialog)
         m.addSeparator()
         add(m, tr("Esci"), self.close, "Ctrl+Q")
 
@@ -657,6 +654,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         add(m, tr("Crea collegamento alla cue selezionata"), self.create_link, "Ctrl+L")
         add(m, tr("Sottotitoli SRT per la cue selezionata…"), self.add_subtitles)
         add(m, tr("Abilita / disabilita le selezionate"), self.toggle_disabled, "Ctrl+Shift+D")
+        add(m, tr("Trova e modifica…"), self.find_edit_dialog, "Ctrl+Shift+F")
         add(m, tr("Elimina"), self.delete_cues, "Delete")
         add(m, tr("Sposta su"), lambda: self.move_selected(-1), "Ctrl+Up")
         add(m, tr("Sposta giù"), lambda: self.move_selected(1), "Ctrl+Down")
@@ -1276,6 +1274,11 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
             return
         self.qs.setValue("geometry", self.saveGeometry())
         self._remove_autosave()        # chiusura regolare: nessun recupero necessario
+        aw = getattr(self, "active_window", None)
+        if aw is not None:             # cue attive staccate: si chiudono con il programma (e restano staccate)
+            self._closing_active = True
+            self.qs.setValue("active_geometry", aw.saveGeometry())
+            aw.close()
         if self.cluster.role == "slave":
             from .outputs import hold
             hold(False)

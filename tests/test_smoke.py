@@ -4812,6 +4812,162 @@ def t_update_check(w):
                 c.label.deleteLater()
 
 
+def t_active_view(w):
+    """Cue attive: dimensione delle righe, filtri (niente gruppi, solo media), finestra separata e riaggancio."""
+    from cuestage.ui_cuelist import ActivePanel
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    a = tone("act.wav", 4)
+    g = Cue("group", number="1", name="Gruppo", group_mode="all")
+    c1 = Cue("audio", number="2", name="Suono", file=a, group=g.id)
+    o = Cue("wait", number="3", name="Attesa", duration=10.0)
+    sh.cues[:] = [g, c1, o]
+    w._set_show(sh)
+    run(0.2)
+    try:
+        w.ctrl.start_cue(g)
+        w.ctrl.start_cue(o)
+        assert wait_until(lambda: c1.id in w.ctrl.instances, 3)
+        names = lambda p: [c.name for _k, c, _x in p._items()]
+        assert set(names(w.active)) == {"Gruppo", "Suono", "Attesa"}, names(w.active)
+        w.set_active_view(hide_groups=True)
+        assert set(names(w.active)) == {"Suono", "Attesa"}
+        w.set_active_view(only_media=True)
+        assert names(w.active) == ["Suono"]
+        w.set_active_view(scale_index=3)
+        assert w.active.scale == ActivePanel.SCALES[3]
+        w.active.repaint()
+        assert w.active.minimumHeight() >= int(ActivePanel.ROW_H * 1.9)
+        win = w.float_active()
+        run(0.2)
+        assert win.isVisible() and not w.active_dock.isVisible() and w.active_placeholder.isVisible()
+        assert win.panel.scale == ActivePanel.SCALES[3] and names(win.panel) == ["Suono"]
+        assert str(w.qs.value("active_floating")).lower() in ("true", "1")
+        win.close()                                     # chiudere la finestra la riaggancia
+        run(0.2)
+        assert w.active_window is None and w.active_dock.isVisible() and not w.active_placeholder.isVisible()
+        assert str(w.qs.value("active_floating")).lower() in ("false", "0")
+    finally:
+        w.set_active_view(scale_index=1, hide_groups=False, only_media=False)
+        if getattr(w, "active_window", None) is not None:
+            w.dock_active()
+        w.ctrl.stop_all(0)
+        run(0.2)
+
+
+def t_find_edit(w):
+    """Trova e modifica: ricerca in tutte le liste, volume ±dB, fade, abilita/disabilita, annulla."""
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    a = tone("fe.wav", 2)
+    v = make_video("fe.mp4", 2)
+    sh.cues[:] = [Cue("audio", number="1", name="Pioggia", file=a, level_db=-2.0),
+                  Cue("audio", number="2", name="Tuono", file=a),
+                  Cue("video", number="3", name="Pioggia video", file=v, fade_link=True),
+                  Cue("osc", number="4", name="Pioggia OSC")]
+    sh.add_panel("Effetti").cues.append(Cue("audio", number="E1", name="pioggia forte", file=a, notes="AD"))
+    w._set_show(sh)
+    run(0.2)
+    d = w.find_edit_dialog()
+    try:
+        d.text.setText("pioggia")
+        assert len(d.found) == 4 and len(d.checked_cues()) == 4, [c.name for _l, c in d.found]
+        d.type.setCurrentIndex(d.type.findData("audio"))
+        assert [c.name for _l, c in d.found] == ["Pioggia", "pioggia forte"]
+        assert d.apply("level", -3.0) == 2
+        cues = {c.name: c for c in w.show_data.all_cues()}
+        assert cues["Pioggia"].level_db == -5.0 and cues["pioggia forte"].level_db == -3.0
+        assert cues["Tuono"].level_db == 0.0
+        w.undo()                                        # un solo passo per tutta la modifica
+        cues = {c.name: c for c in w.show_data.all_cues()}
+        assert cues["Pioggia"].level_db == -2.0 and cues["pioggia forte"].level_db == 0.0
+        d.type.setCurrentIndex(d.type.findData("video"))
+        d.search()
+        assert d.apply("fade_in", 1.5) == 1
+        vc = next(c for c in w.show_data.all_cues() if c.type == "video")
+        assert vc.fade_in == 1.5 and vc.v_fade_in == 1.5
+        # abilita / disabilita in blocco: le «varianti» (es. tutte le cue con «AD» nelle note)
+        d.type.setCurrentIndex(0)
+        d.text.setText("AD")
+        assert [c.name for _l, c in d.found] == ["pioggia forte"]
+        assert d.apply("disable") == 1
+        assert next(c for c in w.show_data.all_cues() if c.name == "pioggia forte").disabled
+        d.text.setText("")
+        d.state.setCurrentIndex(d.state.findData("off"))
+        assert [c.name for _l, c in d.found] == ["pioggia forte"]
+        assert d.apply("enable") == 1 and not d.found
+    finally:
+        d.close()
+
+
+def t_cue_sheet(w):
+    """Cue sheet: CSV (separatore «;») e PDF con tutte le liste, note, marker, cue disabilitate."""
+    import csv as _csv
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    a = tone("cs.wav", 3)
+    sh.cues[:] = [Cue("audio", number="1", name="Apertura", file=a, notes="Al buio",
+                      markers=[{"t": 1.0, "name": "entra attore"}]),
+                  Cue("memo", number="2", name="Cambio scena", disabled=True)]
+    sh.add_panel("Effetti").cues.append(Cue("wait", number="E1", name="Pausa", duration=4.0))
+    w._set_show(sh)
+    run(0.3)
+    p = w.export_cue_sheet(os.path.join(TMP, "sheet.csv"))
+    with open(p, encoding="utf-8-sig") as f:
+        rows = list(_csv.reader(f, delimiter=";"))
+    assert len(rows) == 4, rows
+    assert rows[1][0] == sh.main.name and rows[1][1] == "1" and "Apertura" in rows[1]
+    assert "Al buio" in rows[1] and any("entra attore" in x for x in rows[1])
+    assert rows[2][-1] == "✕" and rows[3][0] == "Effetti" and "Pausa" in rows[3]
+    p = w.export_cue_sheet(os.path.join(TMP, "sheet.pdf"))
+    with open(p, "rb") as f:
+        assert f.read(5) == b"%PDF-"
+    assert os.path.getsize(p) > 1000
+
+
+def t_snapshots(w):
+    """Copie precedenti: ogni salvataggio tiene la versione sovrascritta (non i doppioni), al massimo
+    SNAP_KEEP; si riprende una copia e lo show resta da salvare."""
+    import shutil as _sh
+    from cuestage.window import tools
+    path = os.path.join(TMP, "snap.cueshow")
+    _sh.rmtree(w.snapshot_dir(path), ignore_errors=True)
+    if os.path.exists(path):
+        os.remove(path)
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    sh.cues[:] = [Cue("memo", number="1", name="Prima")]
+    sh.path = path
+    w._set_show(sh)
+    assert w.save() and w.snapshots() == []              # primo salvataggio: niente da conservare
+    assert w.save() and w.snapshots() == []              # nessun cambiamento: nessuna copia
+    w.show_data.cues[0].name = "Seconda"
+    w.show_data.dirty = True
+    assert w.save() and len(w.snapshots()) == 1
+    w.show_data.cues[0].name = "Terza"
+    w.show_data.dirty = True
+    time.sleep(1.05)
+    assert w.save() and len(w.snapshots()) == 2
+    old = tools.SNAP_KEEP
+    tools.SNAP_KEEP = 2
+    try:
+        for k in range(2):
+            w.show_data.cues[0].name = f"Altra {k}"
+            w.show_data.dirty = True
+            time.sleep(1.05)
+            w.save()
+        assert len(w.snapshots()) == 2                   # le più vecchie si tolgono
+    finally:
+        tools.SNAP_KEEP = old
+    from cuestage.ui_batch import SnapshotsDialog
+    d = SnapshotsDialog(w)
+    assert d.list.count() == 2 and d.b_restore.isEnabled()
+    d.close()
+    assert w.restore_snapshot(w.snapshots()[0][0])
+    assert w.show_data.cues[0].name == "Altra 0" and w.show_data.dirty and w.show_data.path == path
+    w.show_data.dirty = False
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -5775,6 +5931,10 @@ if __name__ == "__main__":
     check("Cue Testo «non inviare allo schermo master»: anteprima sì, uscita no, slave normale sì", lambda: t_text_no_master(w))
     check("Sottotitoli: lingua di questa istanza (slave), menu, OSC, preferenze", lambda: t_text_local_lang(w))
     check("Nuova versione: controllo in un thread, scritta rossa accanto ad Aiuto", lambda: t_update_check(w))
+    check("Cue attive: dimensione, filtri, finestra separata", lambda: t_active_view(w))
+    check("Trova e modifica: ricerca, volume, fade, abilita/disabilita, annulla", lambda: t_find_edit(w))
+    check("Cue sheet: CSV e PDF", lambda: t_cue_sheet(w))
+    check("Copie precedenti dello show: salvataggi, limite, ripresa", lambda: t_snapshots(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

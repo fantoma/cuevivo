@@ -727,6 +727,8 @@ class ActivePanel(QWidget):
     showCueRequested = Signal(str)      # clic sull'etichetta della lista: mostra la cue nella sua lista
 
     ROW_H = 50
+    SCALES = (0.7, 1.0, 1.4, 2.0)                # dimensione delle righe: compatta, normale, grande, enorme
+    MEDIA_TYPES = ("audio", "video", "image", "pdf", "text")
 
     def __init__(self, ctrl, parent=None):
         super().__init__(parent)
@@ -738,13 +740,34 @@ class ActivePanel(QWidget):
         self.timer.start(50)
         self.setMouseTracking(True)
         self.bars = []
+        self.scale = 1.0            # dimensione delle righe
+        self.hide_groups = False    # filtro: niente gruppi (si vedono le loro cue)
+        self.only_media = False     # filtro: solo audio, video, immagini, PDF e testi
+
+    def set_view(self, scale=None, hide_groups=None, only_media=None):
+        if scale is not None:
+            self.scale = max(0.5, min(3.0, float(scale)))
+        if hide_groups is not None:
+            self.hide_groups = bool(hide_groups)
+        if only_media is not None:
+            self.only_media = bool(only_media)
+        self.update()
+
+    def _keep(self, cue):
+        if self.hide_groups and cue.type == "group":
+            return False
+        if self.only_media and cue.type not in self.MEDIA_TYPES:
+            return False
+        return True
 
     def _items(self):
         items = []
         for cue, rem in self.ctrl.waiting():
-            items.append(("wait", cue, rem))
+            if self._keep(cue):
+                items.append(("wait", cue, rem))
         for inst in self.ctrl.instances.values():
-            items.append(("run", inst.cue, inst))
+            if self._keep(inst.cue):
+                items.append(("run", inst.cue, inst))
         return items
 
     def paintEvent(self, e):
@@ -755,10 +778,13 @@ class ActivePanel(QWidget):
         self.rows = []
         self.bars = []
         self.badges = []
-        W = self.width()
+        s = self.scale
+        p.scale(s, s)                     # tutto in coordinate «normali», ingrandite o ridotte
+        W = self.width() / s
         if not items:
             p.setPen(QColor(120, 120, 130))
-            p.drawText(self.rect(), Qt.AlignCenter, tr("Nessuna cue attiva"))
+            p.drawText(QRectF(0, 0, W, self.height() / s), Qt.AlignCenter, tr("Nessuna cue attiva"))
+            self.setMinimumHeight(120)
             p.end()
             return
         y = 4
@@ -856,13 +882,13 @@ class ActivePanel(QWidget):
                 p.drawText(sb, Qt.AlignCenter, "■")
                 self.rows.append((pb, sb, cue.id))
             y += self.ROW_H
-        self.setMinimumHeight(max(120, y + 4))
+        self.setMinimumHeight(max(120, int((y + 4) * s)))
         p.end()
 
     def mouseMoveEvent(self, e):
         from PySide6.QtWidgets import QToolTip
         from .markers import marks_tooltip
-        pos = e.position()
+        pos = e.position() / self.scale
         for badge, _cid, name in getattr(self, "badges", []):
             if badge.contains(pos):
                 QToolTip.showText(e.globalPosition().toPoint(), tr("Lista «{0}» · clic per mostrarla", name), self)
@@ -877,7 +903,7 @@ class ActivePanel(QWidget):
         QToolTip.hideText()
 
     def mousePressEvent(self, e):
-        pos = e.position()
+        pos = e.position() / self.scale
         for badge, cid, _name in getattr(self, "badges", []):
             if badge.contains(pos):
                 self.showCueRequested.emit(cid)

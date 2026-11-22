@@ -309,7 +309,9 @@ class FilesMixin:
         try:
             self._corners_changed()
             self._history_flush()
+            snap = self._snapshot_before_save(self.show_data.path)   # copia datata di ciò che si sovrascrive
             self.show_data.save(self.show_data.path)
+            self._snapshot_drop_same(snap, self.show_data.path)    # salvato senza cambiamenti: copia inutile
         except Exception as e:
             QMessageBox.critical(self, tr("Errore"), tr("Salvataggio fallito:\n{0}", e))
             return False
