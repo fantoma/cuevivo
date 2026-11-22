@@ -306,7 +306,10 @@ The text is drawn on the video output, above (or below, with the **layer**) the 
   - **One track per language** (.srt or WebVTT .vtt): the language is guessed from the file name
     (`film.it.srt`, `film_eng.srt`…) and can be edited in the table. Each cue can use a fixed language or the
     **show language**, which can be changed live in the inspector or with OSC `/text/lang <code>` (no argument =
-    first track); a cue without that language uses its first track. The subtitle texts are stored in the show,
+    first track); a cue without that language uses its first track. **Video output › Subtitle language of this
+    instance** (or OSC `/text/lang/local <code>`, no argument = back to the show language) overrides the show
+    language on this computer only and is remembered there: each **slave** can show the subtitles in its own
+    language (a language fixed in the cue still wins). The subtitle texts are stored in the show,
     which therefore stays self-contained (bundles, clusters); **Export .srt…** writes a track back to a file.
   - **Timing check** for every track: blocks without valid times, subtitles ending before they start, out of
     order, overlapping (shown together), shorter than 0.3 s, empty, non-progressive numbering, non-UTF-8

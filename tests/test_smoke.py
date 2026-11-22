@@ -4731,6 +4731,37 @@ def t_text_no_master(w):
         run(0.2)
 
 
+def t_text_local_lang(w):
+    """Lingua dei sottotitoli di questa istanza (es. uno slave): vince sulla lingua dello show, non su quella
+    fissata nella cue; resta nelle preferenze; menu e OSC /text/lang/local."""
+    from cuestage import srt
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    sh.settings["sub_lang"] = "it"
+    c = Cue("text", number="1", text_mode="srt", srt_tracks=[{"lang": "it", "srt": ""}, {"lang": "en", "srt": ""},
+                                                             {"lang": "sl", "srt": ""}])
+    sh.cues[:] = [c]
+    w._set_show(sh)
+    run(0.1)
+    try:
+        assert srt.pick_track(c, sh)["lang"] == "it"
+        w.set_local_sub_lang("ENG")
+        assert srt.local_lang() == "en" and w.qs.value("sub_lang_local") == "en"
+        assert srt.pick_track(c, sh)["lang"] == "en"
+        c.srt_lang = "sl"
+        assert srt.pick_track(c, sh)["lang"] == "sl"             # la lingua fissata nella cue resta
+        c.srt_lang = ""
+        w._fill_sublang()
+        checked = [a.text() for a in w.sublang_menu.actions() if a.isChecked()]
+        assert checked == [srt.lang_label("en")], checked
+        w._osc_message("/text/lang/local", ["sl"])
+        assert srt.pick_track(c, sh)["lang"] == "sl"
+        w._osc_message("/text/lang/local", [])
+        assert srt.local_lang() == "" and srt.pick_track(c, sh)["lang"] == "it"
+    finally:
+        w.set_local_sub_lang("")
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -5692,6 +5723,7 @@ if __name__ == "__main__":
     check("Cue Testo SRT: sottotitoli del video, più lingue, tempi agganciati, controllo dei tempi", lambda: t_text_srt(w))
     check("Cue Testo in sequenza: tempi memorizzati sul video agganciato, Tempi e SRT, trasformazione", lambda: t_text_rec(w))
     check("Cue Testo «non inviare allo schermo master»: anteprima sì, uscita no, slave normale sì", lambda: t_text_no_master(w))
+    check("Sottotitoli: lingua di questa istanza (slave), menu, OSC, preferenze", lambda: t_text_local_lang(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

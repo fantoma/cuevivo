@@ -141,6 +141,51 @@ class VideoMixin:
         if self.output is not None and self.output.isVisible():
             self.show_output()
 
+    def _fill_sublang(self):
+        """Menu della lingua dei sottotitoli SRT di questa istanza (ogni slave può avere la sua)."""
+        from .. import srt
+        m = self.sublang_menu
+        m.clear()
+        cur = srt.local_lang()
+        sl = srt.show_lang(self.show_data)
+        a = m.addAction(tr("Come lo show ({0})", srt.lang_label(sl) if sl else tr("prima traccia")))
+        a.setCheckable(True)
+        a.setChecked(not cur)
+        a.triggered.connect(lambda: self.set_local_sub_lang(""))
+        langs = srt.show_languages(self.show_data)
+        if cur and cur not in langs:
+            langs.append(cur)
+        if langs:
+            m.addSeparator()
+        for lg in langs:
+            a = m.addAction(srt.lang_label(lg))
+            a.setCheckable(True)
+            a.setChecked(lg == cur)
+            a.triggered.connect(lambda _=False, lg=lg: self.set_local_sub_lang(lg))
+        m.addSeparator()
+        m.addAction(tr("Altra lingua…"), self._ask_local_sub_lang)
+
+    def _ask_local_sub_lang(self):
+        from PySide6.QtWidgets import QInputDialog
+        from .. import srt
+        code, ok = QInputDialog.getText(self, tr("Lingua dei sottotitoli di questa istanza"),
+                                        tr("Codice della lingua (it, en, sl…)"), text=srt.local_lang())
+        if ok:
+            self.set_local_sub_lang(code)
+
+    def set_local_sub_lang(self, code):
+        """Lingua dei sottotitoli SRT su questa istanza («» = quella dello show); vale subito, anche sul
+        testo in uscita, e resta nelle preferenze del computer."""
+        from .. import srt
+        srt.set_local_lang(code)
+        self.qs.setValue("sub_lang_local", srt.local_lang())
+        ic = getattr(self.inspector, "cue", None)
+        if ic is not None and ic.type == "text" and ic.text_mode == "srt":
+            self.inspector.rebuild()
+        lg = srt.local_lang()
+        self.status(tr("Sottotitoli di questa istanza: {0}", srt.lang_label(lg)) if lg
+                    else tr("Sottotitoli di questa istanza: lingua dello show"))
+
     def _fill_screens(self):
         from ..screens import describe, identity
         self.screens_menu.clear()

@@ -418,7 +418,9 @@ class TextTabMixin:
             busy[0] = True
             lcb.clear()
             sl = srt.show_lang(sh)
-            lcb.addItem(tr("Lingua dello show ({0})", srt.lang_label(sl) if sl else tr("prima traccia")), "")
+            loc = srt.local_lang()
+            lcb.addItem(tr("Lingua di questa istanza ({0})", srt.lang_label(loc)) if loc else
+                        tr("Lingua dello show ({0})", srt.lang_label(sl) if sl else tr("prima traccia")), "")
             seen = []
             for t in tracks():
                 lg = srt.norm_lang(t.get("lang"))

@@ -386,16 +386,30 @@ def track_issues(track):
     return iss
 
 
+# lingua scelta su questa istanza (menu Uscita video, salvata nelle preferenze del computer): vale al posto
+# della lingua dello show, così ogni slave può mostrare i sottotitoli nella sua lingua
+_local = {"lang": ""}
+
+
+def set_local_lang(code):
+    _local["lang"] = norm_lang(code)
+
+
+def local_lang():
+    return _local["lang"]
+
+
 def show_lang(show):
     return norm_lang((getattr(show, "settings", None) or {}).get("sub_lang", "")) if show is not None else ""
 
 
 def pick_track(cue, show=None):
-    """Traccia della lingua scelta: quella della cue, altrimenti la lingua dello show; se non c'è, la prima."""
+    """Traccia della lingua scelta: quella della cue, altrimenti quella di questa istanza, altrimenti la lingua
+    dello show; se non c'è, la prima."""
     tracks = [t for t in (cue.srt_tracks or []) if isinstance(t, dict)]
     if not tracks:
         return None
-    want = norm_lang(cue.srt_lang) or show_lang(show)
+    want = norm_lang(cue.srt_lang) or local_lang() or show_lang(show)
     if want:
         for t in tracks:
             if norm_lang(t.get("lang")) == want:

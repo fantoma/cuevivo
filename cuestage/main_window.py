@@ -195,6 +195,8 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         self._select_guard = False
         self._edit_on = False
         self.qs = _app_settings()
+        from .srt import set_local_lang
+        set_local_lang(str(self.qs.value("sub_lang_local", "") or ""))
 
         self._history_init()
         self._build_ui()
@@ -713,6 +715,9 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
             self.engine_actions[k] = a
         self.act_vpre = add(m, tr("Precarica i video (cue con «Precarica»)"), self._toggle_video_preload)
         self.act_vpre.setCheckable(True)
+        m.addSeparator()
+        self.sublang_menu = m.addMenu(tr("Lingua dei sottotitoli di questa istanza"))
+        self.sublang_menu.aboutToShow.connect(self._fill_sublang)
 
         m = mb.addMenu(tr("&Impostazioni"))
         add(m, tr("Audio, OSC e MIDI…"), self.settings_dialog, "Ctrl+,")

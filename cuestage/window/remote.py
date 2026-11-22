@@ -72,6 +72,9 @@ class RemoteMixin:
             self.text_step(1 if a.endswith("next") else -1)
         elif a == "/text/goto" and args:
             self.ctrl.text_goto(int(args[0]) - 1)
+        elif a == "/text/lang/local":
+            # lingua dei sottotitoli di questa istanza (anche su uno slave) · senza argomento = quella dello show
+            self.set_local_sub_lang(str(args[0]) if args else "")
         elif a == "/text/lang":
             # lingua dello show per le cue SRT: /text/lang it · senza argomento = prima traccia
             from ..srt import norm_lang
