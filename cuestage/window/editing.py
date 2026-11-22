@@ -109,6 +109,8 @@ class EditingMixin:
             for c in cues:
                 c.group = group
         self._insert_cues(cues, row)
+        if ctype == "video":
+            self._scan_subtitles(cues)
 
     def _cue_for_file(self, path, ctype=None):
         ctype = ctype or type_for_file(path) or "audio"
@@ -122,14 +124,22 @@ class EditingMixin:
 
     def _files_dropped(self, paths, row, group=None):
         cues = []
+        subs = []                     # .srt / .vtt: agganciati al video con lo stesso nome (o alla cue scelta)
         for p in paths:
             if os.path.isdir(p):
                 for f in sorted(os.listdir(p)):
                     fp = os.path.join(p, f)
                     if type_for_file(fp):
                         cues.append(fp)
+                    elif fp.lower().endswith((".srt", ".vtt")):
+                        subs.append(fp)
             elif type_for_file(p):
                 cues.append(p)
+            elif p.lower().endswith((".srt", ".vtt")):
+                subs.append(p)
+        if subs and not cues:
+            self._subs_dropped(subs, [])
+            return
         made = []
         for p in cues:
             c = Cue(type_for_file(p), name=os.path.splitext(os.path.basename(p))[0], file=p)
@@ -145,8 +155,34 @@ class EditingMixin:
                 c.group = group
         if made:
             self._insert_cues(made, row)
+            self._scan_subtitles(made)
+            if subs:
+                self._subs_dropped(subs, made)
         else:
             self.status(tr("Nessun file multimediale riconosciuto"))
+
+    def _subs_dropped(self, subs, made):
+        """File di sottotitoli trascinati: ognuno va al video (o audio) appena inserito il cui nome è l'inizio
+        del suo («film.mp4» ← «film.it.srt»); gli altri alla cue audio/video selezionata."""
+        from .. import srt
+        media = [c for c in made if c.type in ("audio", "video")]
+        cur = self._current_cue()
+        groups = {}
+        for p in subs:
+            stem = os.path.basename(p).lower()
+            tg = next((c for c in sorted(media, key=lambda c: -len(c.file))
+                       if stem.startswith(os.path.splitext(os.path.basename(c.file))[0].lower())), None)
+            if tg is None:
+                tg = media[0] if len(media) == 1 else (cur if cur is not None and cur.type in ("audio", "video") else None)
+            if tg is None:
+                self.status(tr("Sottotitoli «{0}»: seleziona prima la cue audio o video", os.path.basename(p)))
+                continue
+            try:
+                groups.setdefault(tg.id, (tg, []))[1].append(srt.make_track(p))
+            except OSError as e:
+                self.status(f"✘ {p}: {e}")
+        for tg, tracks in groups.values():
+            self.attach_subtitles(tg, tracks)
 
     def _rows_moved(self, rows, dest):
         from ..groups import block_end, membership_for_insert
@@ -234,6 +270,8 @@ class EditingMixin:
                 c.group = idmap[c.group]
                 if c.type == "groupexit":       # la copia della cue di uscita chiude la copia del gruppo
                     c.target = c.group
+            if c.type == "text" and c.srt_target in idmap:   # sottotitoli copiati col loro video
+                c.srt_target = idmap[c.srt_target]
         n = self.show_data.next_number()
         try:
             for i, c in enumerate(clones):
@@ -391,6 +429,131 @@ class EditingMixin:
                     inst.live_edit()
         self.model.refresh()
         self._update_standby()
+
+    # ------------------------------------------------------------------ sottotitoli SRT
+    def _srt_cue_for(self, target):
+        return next((c for c in self.show_data.all_cues() if c.type == "text" and c.text_mode == "srt"
+                     and c.srt_target == target.id), None)
+
+    def attach_subtitles(self, target, tracks):
+        """Tracce SRT per una cue audio/video: vanno nella sua cue SRT (una traccia della stessa lingua viene
+        sostituita) oppure in una cue Testo nuova dopo di essa (fuori dai gruppi), che parte con lei.
+        Restituisce la cue SRT."""
+        from .. import srt
+        sc = self._srt_cue_for(target)
+        if sc is not None:
+            cur = [dict(t) for t in sc.srt_tracks or []]
+            for t in tracks:
+                lg = srt.norm_lang(t.get("lang"))
+                k = next((j for j, o in enumerate(cur) if lg and srt.norm_lang(o.get("lang")) == lg), None)
+                if k is None:
+                    cur.append(t)
+                else:
+                    cur[k] = t
+            sc.srt_tracks = cur
+            self.show_data.dirty = True
+            self.model.beginResetModel()
+            self.model.endResetModel()
+            if self.inspector.cue is sc:
+                self.inspector.rebuild()
+            return sc
+        c = new_cue("text", number=self.show_data.next_number(),
+                    name=tr("Sottotitoli {0}", target.name or target.number).strip(),
+                    text_mode="srt", srt_target=target.id, srt_tracks=list(tracks), srt_auto=True,
+                    trigger="trigger")
+        lst, i = self.show_data.list_of(target.id)
+        if lst is None:
+            return None
+        from ..groups import block_end
+        pos = i + 1
+        if target.group:
+            hi = lst.index_of(target.group)
+            if hi >= 0:
+                pos = block_end(lst.cues, hi)
+        if lst is self.show_data.current:
+            self._insert_cues([c], None if lst.is_grid else pos)
+            r = lst.index_of(target.id)
+            if r >= 0 and not lst.is_grid:
+                self._select_row(r)
+        else:
+            lst.cues.insert(pos, c)
+            self._structure_changed()
+        self.status(tr("Sottotitoli agganciati a «{0}»: {1}", target.label(),
+                       ", ".join(srt.lang_label(t.get("lang")) for t in tracks)))
+        return c
+
+    def add_subtitles(self):
+        """Menu: file .srt / .vtt per la cue audio/video selezionata."""
+        from .. import srt
+        cur = self._current_cue()
+        if cur is None or cur.type not in ("audio", "video"):
+            self.status(tr("Sottotitoli: scegli una cue audio o video"))
+            return
+        start = os.path.dirname(cur.file) if cur.file else self.qs.value("last_dir", os.path.expanduser("~"))
+        paths, _ = QFileDialog.getOpenFileNames(self, tr("Sottotitoli per «{0}»", cur.label()), start,
+                                                tr("Sottotitoli (*.srt *.vtt);;Tutti (*)"))
+        if not paths:
+            return
+        tracks = []
+        for p in paths:
+            try:
+                tracks.append(srt.make_track(p))
+            except OSError as e:
+                self.status(f"✘ {p}: {e}")
+        if tracks:
+            self.attach_subtitles(cur, tracks)
+
+    def _ask_subtitles(self, cue, streams):
+        """Finestra: tracce scelte e azione («cue», «file», «both»); None = ignora."""
+        from ..ui_subs import SubsFoundDialog
+        dlg = SubsFoundDialog(self, os.path.basename(cue.file), streams)
+        if dlg.exec() != SubsFoundDialog.Accepted:
+            return None
+        ns, act = dlg.result_choice()
+        return (ns, act) if ns else None
+
+    def _extract_subtitles(self, path, ns):
+        from ..ui_subs import extract_with_progress
+        return extract_with_progress(self, path, ns)
+
+    def _scan_subtitles(self, cues):
+        """Video appena inseriti: se contengono sottotitoli si chiede se importarli in una cue SRT agganciata
+        o esportarli in file .srt accanto al video."""
+        from .. import srt
+        from ..ui_subs import export_paths, write_srt
+        for c in cues:
+            if c.type != "video" or not c.file:
+                continue
+            streams = srt.probe_subs(c.file)
+            if not streams:
+                continue
+            ans = self._ask_subtitles(c, streams)
+            if not ans:
+                continue
+            ns, act = ans
+            try:
+                texts = self._extract_subtitles(c.file, ns)
+            except RuntimeError as e:
+                QMessageBox.warning(self, tr("Sottotitoli"), tr("Estrazione non riuscita: {0}", e))
+                continue
+            if not texts:
+                continue
+            by_n = {st["n"]: st for st in streams}
+            got = [(by_n[n], texts[n]) for n in ns if n in texts]
+            if act in ("file", "both"):
+                try:
+                    paths = export_paths(c.file, [st["lang"] for st, _t in got])
+                    for p, (_st, t) in zip(paths, got):
+                        write_srt(p, t)
+                    self.status(tr("Sottotitoli esportati: {0}", ", ".join(os.path.basename(p) for p in paths)))
+                except OSError as e:
+                    QMessageBox.warning(self, tr("Sottotitoli"), tr("Impossibile scrivere i file .srt: {0}", e))
+            if act in ("cue", "both"):
+                name = os.path.basename(c.file)
+                tracks = [{"lang": st["lang"], "srt": t,
+                           "name": f"{name} #{st['n'] + 1}" + (f" «{st['title']}»" if st.get("title") else "")}
+                          for st, t in got]
+                self.attach_subtitles(c, tracks)
 
     def _model_edited(self):
         self.inspector.refresh_fields()

@@ -1,4 +1,5 @@
-"""Scheda dell'ispettore per le cue di testo (sopratitoli) (parte di Inspector)."""
+"""Scheda dell'ispettore per le cue di testo (sopratitoli, sottotitoli SRT) (parte di Inspector)."""
+import os
 
 from ..i18n import tr
 from PySide6.QtCore import Qt, QTimer
@@ -24,6 +25,7 @@ class TextTabMixin:
         mc = QComboBox()
         mc.addItem(tr("Sequenza di frasi: una per GO (sottotitoli)"), "sequence")
         mc.addItem(tr("Testo libero: tutto insieme"), "free")
+        mc.addItem(tr("Sottotitoli a tempo (SRT) agganciati a una cue audio/video"), "srt")
         mc.setCurrentIndex(max(0, mc.findData(cue.text_mode)))
         top.addWidget(QLabel(tr("Modalità")))
         top.addWidget(mc, 1)
@@ -37,6 +39,13 @@ class TextTabMixin:
         f0.setPointSizeF(f0.pointSizeF() * 1.1)
         ed.setFont(f0)
         left.addWidget(ed, 1)
+        is_srt = cue.text_mode == "srt"
+        srt_refresh = None
+        if is_srt:
+            ed.hide()
+            imp.hide()
+            sp_w, srt_refresh = self._srt_panel(cue)
+            left.addWidget(sp_w, 1)
         info = QLabel()
         info.setStyleSheet("color:#999;")
         info.setWordWrap(True)
@@ -142,7 +151,7 @@ class TextTabMixin:
         right.addLayout(f)
         # --- anteprima
         prow = QHBoxLayout()
-        prow.addWidget(QLabel(tr("Anteprima frase")))
+        prow.addWidget(QLabel(tr("Anteprima sottotitolo") if cue.text_mode == "srt" else tr("Anteprima frase")))
         pn = QSpinBox()
         pn.setRange(1, 1)
         prow.addWidget(pn)
@@ -169,6 +178,10 @@ class TextTabMixin:
         outer.addWidget(sa_r, 2)
 
         def phrases():
+            if cue.text_mode == "srt":
+                from ..srt import parse, pick_track
+                tk = pick_track(cue, self.show_fn())
+                return [e[2] for e in parse(tk.get("srt") or "").entries] if tk else []
             return split_phrases(cue.text_content) if cue.text_mode == "sequence" else [cue.text_content or ""]
 
         def redraw():
@@ -176,8 +189,15 @@ class TextTabMixin:
             pn.blockSignals(True)
             pn.setRange(1, max(1, len(ps)))
             pn.blockSignals(False)
-            info.setText(tr("{0} frasi · GO avanza di una frase, dopo l'ultima il GO esce · Alt+→ / Alt+← frase successiva / precedente · ESC esce", len(ps))
-                         if cue.text_mode == "sequence" else tr("Il testo compare intero all'avvio della cue"))
+            if cue.text_mode == "srt":
+                info.setText(tr("{0} sottotitoli · compaiono seguendo la posizione del file della cue agganciata "
+                                "(punto IN, loop, pausa e salti compresi); finita quella, finiscono anche loro",
+                                len(phrases())))
+            else:
+                info.setText(tr("{0} frasi · GO avanza di una frase, dopo l'ultima il GO esce · Alt+→ / Alt+← frase successiva / precedente · ESC esce", len(ps))
+                             if cue.text_mode == "sequence" else tr("Il testo compare intero all'avvio della cue"))
+            if srt_refresh is not None:
+                srt_refresh()
             W, H = self.ctrl.comp.out_size
             img = render_text(cue, ps[pn.value() - 1], int(W), int(H))
             pm = QPixmap(320, 180)
@@ -243,5 +263,279 @@ class TextTabMixin:
             if inst is not None and hasattr(inst, "goto"):
                 inst.goto(pn.value() - 1)
         live.clicked.connect(show_live)
+        live.setVisible(not is_srt)
         redraw()
         return w
+
+    # ------------------------------------------------------------------ sottotitoli a tempo (SRT)
+    def _srt_panel(self, cue):
+        """Cue agganciata, tracce (una per lingua), lingua, ritardo e controllo dei tempi.
+        Restituisce (widget, aggiorna)."""
+        from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QMessageBox, QTableWidget, QTableWidgetItem
+        from .. import srt
+        from ..model import TYPE_LABELS
+        from ..ui_subs import SubsFoundDialog, export_paths, extract_with_progress, write_srt
+        sh = self.show_fn()
+        w = QWidget()
+        v = QVBoxLayout(w)
+        v.setContentsMargins(0, 0, 0, 0)
+        f = QFormLayout()
+        # --- cue agganciata
+        trow = QHBoxLayout()
+        tcb = QComboBox()
+        tcb.addItem(tr("— scegli la cue audio/video —"), "")
+        for lst in sh.lists:
+            for c in lst.cues:
+                if c.type in ("audio", "video"):
+                    tcb.addItem(f"{lst.name} · {c.number or '·'} – {c.name or TYPE_LABELS.get(c.type, c.type)}", c.id)
+        i = tcb.findData(cue.srt_target)
+        if i < 0 and cue.srt_target:
+            tcb.addItem("⚠ " + tr("cue agganciata eliminata"), cue.srt_target)
+            i = tcb.count() - 1
+        tcb.setCurrentIndex(max(0, i))
+        trow.addWidget(tcb, 1)
+        go = QPushButton(tr("Vai"))
+        go.clicked.connect(lambda: self.reveal_fn(cue.srt_target)
+                           if (cue.srt_target and getattr(self, "reveal_fn", None)) else None)
+        trow.addWidget(go)
+        f.addRow(tr("Cue agganciata"), trow)
+        auto = QCheckBox(tr("Parte da sola quando parte la cue agganciata"))
+        auto.setChecked(bool(cue.srt_auto))
+        auto.toggled.connect(lambda on: (setattr(cue, "srt_auto", on), self._emit()))
+        f.addRow("", auto)
+        # --- lingua
+        lrow = QHBoxLayout()
+        lcb = QComboBox()
+        lrow.addWidget(lcb, 1)
+        lrow.addWidget(QLabel(tr("Lingua dello show")))
+        scb = QComboBox()
+        scb.setEditable(True)
+        scb.setToolTip(tr("Lingua usata da tutte le cue SRT impostate su «lingua dello show» "
+                          "(si cambia anche durante lo spettacolo; OSC /text/lang <codice>)"))
+        lrow.addWidget(scb, 1)
+        f.addRow(tr("Lingua"), lrow)
+        f.addRow(tr("Ritardo"), self._dspin("srt_offset", -3600, 3600, 0.1, 2))
+        v.addLayout(f)
+        # --- tracce
+        tbl = QTableWidget(0, 4)
+        tbl.setHorizontalHeaderLabels([tr("Lingua"), tr("File"), tr("Sottotitoli"), tr("Tempi")])
+        tbl.setSelectionBehavior(QAbstractItemView.SelectRows)
+        tbl.setSelectionMode(QAbstractItemView.SingleSelection)
+        tbl.verticalHeader().hide()
+        hh = tbl.horizontalHeader()
+        hh.setSectionResizeMode(1, QHeaderView.Stretch)
+        for k in (0, 2, 3):
+            hh.setSectionResizeMode(k, QHeaderView.ResizeToContents)
+        tbl.setToolTip(tr("Doppio clic sulla lingua per cambiarne il codice (it, en, sl…)"))
+        tbl.setMinimumHeight(70)
+        tbl.setMaximumHeight(130)
+        v.addWidget(tbl)
+        brow = QHBoxLayout()
+        b_add = QPushButton(tr("Aggiungi .srt…"))
+        b_vid = QPushButton(tr("Dal video…"))
+        b_vid.setToolTip(tr("Importa le tracce di sottotitoli contenute nel file della cue agganciata"))
+        b_exp = QPushButton(tr("Esporta .srt…"))
+        b_del = QPushButton(tr("Rimuovi"))
+        for b in (b_add, b_vid, b_exp, b_del):
+            brow.addWidget(b)
+        brow.addStretch(1)
+        v.addLayout(brow)
+        chk = QLabel()
+        chk.setWordWrap(True)
+        chk.setTextFormat(Qt.RichText)
+        chk.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        chk.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        v.addWidget(chk, 1)
+        busy = [False]
+
+        def tracks():
+            return [t for t in (cue.srt_tracks or []) if isinstance(t, dict)]
+
+        def fill_langs():
+            busy[0] = True
+            lcb.clear()
+            sl = srt.show_lang(sh)
+            lcb.addItem(tr("Lingua dello show ({0})", srt.lang_label(sl) if sl else tr("prima traccia")), "")
+            seen = []
+            for t in tracks():
+                lg = srt.norm_lang(t.get("lang"))
+                if lg and lg not in seen:
+                    seen.append(lg)
+                    lcb.addItem(srt.lang_label(lg), lg)
+            j = lcb.findData(srt.norm_lang(cue.srt_lang))
+            if j < 0 and cue.srt_lang:
+                lcb.addItem("⚠ " + srt.lang_label(cue.srt_lang), cue.srt_lang)
+                j = lcb.count() - 1
+            lcb.setCurrentIndex(max(0, j))
+            scb.clear()
+            scb.addItem(tr("— prima traccia —"), "")
+            for lg in srt.show_languages(sh):
+                scb.addItem(srt.lang_label(lg), lg)
+            j = scb.findData(sl)
+            if j < 0 and sl:
+                scb.addItem(srt.lang_label(sl), sl)
+                j = scb.count() - 1
+            scb.setCurrentIndex(max(0, j))
+            busy[0] = False
+
+        def refresh():
+            busy[0] = True
+            sel = tbl.currentRow()
+            tl = tracks()
+            tbl.setRowCount(len(tl))
+            active = srt.pick_track(cue, sh)
+            lines = []
+            for r, t in enumerate(tl):
+                p = srt.parse(t.get("srt") or "")
+                iss = srt.all_issues(sh, cue, t, self.loader)
+                bad = sum(1 for x in iss if x[0] == "error")
+                cells = [srt.norm_lang(t.get("lang")) or "?", t.get("name") or "",
+                         str(len(p.entries)), "✘" if bad else ("⚠" if iss else "✔")]
+                for col, txt in enumerate(cells):
+                    it = QTableWidgetItem(txt)
+                    if col != 0:
+                        it.setFlags(it.flags() & ~Qt.ItemIsEditable)
+                    if t is active:
+                        fnt = it.font()
+                        fnt.setBold(True)
+                        it.setFont(fnt)
+                    tbl.setItem(r, col, it)
+                span = (f"{srt.fmt_time(p.entries[0][0])[:8]} → {srt.fmt_time(p.last_end())[:8]}"
+                        if p.entries else "")
+                head = f"<b>{srt.lang_label(t.get('lang'))}</b> · {tr('{0} sottotitoli', len(p.entries))}" + \
+                    (f" · {span}" if span else "")
+                body = "<br>".join(srt.issue_text(x) for x in iss) or "✔ " + tr("tempi conformi")
+                lines.append(head + "<br>" + body)
+            if 0 <= sel < len(tl):
+                tbl.selectRow(sel)
+            tg, dur, a, b = srt.target_info(sh, cue, self.loader)
+            if not tl:
+                lines.insert(0, tr("Nessun file di sottotitoli: aggiungi un .srt (uno per lingua)"))
+            if tg is None:
+                lines.insert(0, "⚠ " + tr("Scegli la cue audio/video a cui agganciare i sottotitoli"))
+            elif dur <= 0:
+                lines.insert(0, tr("Durata del file di «{0}» non ancora nota: il controllo dei tempi sul file "
+                                   "arriva appena è letta", tg.label()))
+            chk.setText("<br><br>".join(lines))
+            b_vid.setEnabled(tg is not None and tg.type == "video" and bool(tg.file))
+            b_exp.setEnabled(bool(tl))
+            b_del.setEnabled(bool(tl))
+            busy[0] = False
+
+        def changed(rebuild_langs=True):
+            self._emit()
+            if rebuild_langs:
+                fill_langs()
+
+        def target_changed(j):
+            cue.srt_target = tcb.itemData(j) or ""
+            changed(False)
+        tcb.currentIndexChanged.connect(target_changed)
+
+        def lang_cell(it):
+            if busy[0] or it.column() != 0:
+                return
+            tl = tracks()
+            if 0 <= it.row() < len(tl):
+                tl[it.row()]["lang"] = srt.norm_lang(it.text())
+                cue.srt_tracks = tl
+                QTimer.singleShot(0, changed)
+        tbl.itemChanged.connect(lang_cell)
+
+        def cue_lang(j):
+            if not busy[0]:
+                cue.srt_lang = lcb.itemData(j) or ""
+                changed(False)
+        lcb.currentIndexChanged.connect(cue_lang)
+
+        def show_lang_set(*_):
+            if busy[0]:
+                return
+            j = scb.currentIndex()
+            data = scb.itemData(j) if j >= 0 and scb.itemText(j) == scb.currentText() else None
+            code = data if data is not None else srt.norm_lang(scb.currentText())
+            sh.settings["sub_lang"] = code or ""
+            sh.dirty = True
+            QTimer.singleShot(0, changed)
+        scb.activated.connect(show_lang_set)
+        scb.lineEdit().editingFinished.connect(show_lang_set)
+
+        def add_files():
+            tg = sh.by_id(cue.srt_target) if cue.srt_target else None
+            start = os.path.dirname(tg.file) if (tg is not None and getattr(tg, "file", "")) else ""
+            paths, _ = QFileDialog.getOpenFileNames(self, tr("Sottotitoli"), start,
+                                                    tr("Sottotitoli (*.srt *.vtt);;Tutti (*)"))
+            add_tracks([srt.make_track(p) for p in paths if os.path.isfile(p)])
+
+        def add_tracks(new):
+            tl = [dict(t) for t in tracks()]
+            for t in new:
+                lg = srt.norm_lang(t.get("lang"))
+                k = next((j for j, o in enumerate(tl) if lg and srt.norm_lang(o.get("lang")) == lg), None)
+                if k is None:
+                    tl.append(t)
+                else:
+                    tl[k] = t
+            cue.srt_tracks = tl
+            changed()
+        self._srt_add_tracks = add_tracks
+
+        def from_video():
+            tg = sh.by_id(cue.srt_target) if cue.srt_target else None
+            if tg is None or not tg.file:
+                return
+            streams = srt.probe_subs(tg.file)
+            if not any(s_.get("text") for s_ in streams):
+                QMessageBox.information(self, tr("Sottotitoli"),
+                                        tr("Il file di «{0}» non contiene sottotitoli in formato testo", tg.label()))
+                return
+            dlg = SubsFoundDialog(self, os.path.basename(tg.file), streams, ask_action=False)
+            if dlg.exec() != SubsFoundDialog.Accepted:
+                return
+            ns, _act = dlg.result_choice()
+            try:
+                texts = extract_with_progress(self, tg.file, ns) or {}
+            except RuntimeError as e:
+                QMessageBox.warning(self, tr("Sottotitoli"), tr("Estrazione non riuscita: {0}", e))
+                return
+            by_n = {s_["n"]: s_ for s_ in streams}
+            name = os.path.basename(tg.file)
+            add_tracks([{"lang": by_n[n]["lang"], "srt": texts[n],
+                         "name": f"{name} #{n + 1}" + (f" «{by_n[n]['title']}»" if by_n[n].get("title") else "")}
+                        for n in ns if n in texts])
+
+        def export():
+            tl = tracks()
+            r = tbl.currentRow()
+            if not (0 <= r < len(tl)):
+                r = 0
+            t = tl[r]
+            tg = sh.by_id(cue.srt_target) if cue.srt_target else None
+            base = tg.file if (tg is not None and getattr(tg, "file", "")) else os.path.join(
+                os.path.expanduser("~"), cue.name or "sottotitoli")
+            sug = export_paths(base, [srt.norm_lang(t.get("lang"))])[0]
+            path, _ = QFileDialog.getSaveFileName(self, tr("Esporta sottotitoli"), sug, tr("Sottotitoli (*.srt)"))
+            if path:
+                try:
+                    write_srt(path, t.get("srt") or "")
+                except OSError as e:
+                    QMessageBox.warning(self, tr("Sottotitoli"), str(e))
+
+        def remove():
+            tl = tracks()
+            r = tbl.currentRow()
+            if 0 <= r < len(tl):
+                del tl[r]
+                cue.srt_tracks = tl
+                changed()
+        b_add.clicked.connect(add_files)
+        b_vid.clicked.connect(from_video)
+        b_exp.clicked.connect(export)
+        b_del.clicked.connect(remove)
+        fill_langs()
+        refresh()
+        outer = QScrollArea()
+        outer.setWidgetResizable(True)
+        outer.setFrameShape(QFrame.NoFrame)
+        outer.setWidget(w)
+        return outer, refresh

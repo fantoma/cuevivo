@@ -287,6 +287,30 @@ The text is drawn on the video output, above (or below, with the **layer**) the 
   `/text/next`, `/text/prev`, `/text/goto <n>`. **Import .txt / .srt** loads the lines from a file (only the
   texts are kept from an .srt).
 - **Free text**: all the text together, until STOP or for the given **duration**.
+- **Timed subtitles (SRT)** attached to an **audio/video cue**: the subtitles follow the *file position* of that
+  cue, so IN point, loops, pause, “Restart from here” and jumps are all respected; when the attached cue ends (or
+  is stopped) the subtitles end too. With **“Starts by itself when the attached cue starts”** (default) the SRT
+  cue needs no GO of its own (it is created as *trigger only*, outside groups, so it also works in GRID panels,
+  Stinger and playlist groups). **Delay** shifts all times (positive = later).
+  - **One track per language** (.srt or WebVTT .vtt): the language is guessed from the file name
+    (`film.it.srt`, `film_eng.srt`…) and can be edited in the table. Each cue can use a fixed language or the
+    **show language**, which can be changed live in the inspector or with OSC `/text/lang <code>` (no argument =
+    first track); a cue without that language uses its first track. The subtitle texts are stored in the show,
+    which therefore stays self-contained (bundles, clusters); **Export .srt…** writes a track back to a file.
+  - **Timing check** for every track: blocks without valid times, subtitles ending before they start, out of
+    order, overlapping (shown together), shorter than 0.3 s, empty, non-progressive numbering, non-UTF-8
+    encoding (read as Windows-1252); against the attached file: subtitles starting after the end of the file or
+    ending after it, before the IN point or after the OUT point, all times stretched by a typical frame-rate
+    ratio (23.976 ↔ 25 fps…), last subtitle well before the middle of the file.
+  - **Cue › SRT subtitles for the selected cue…** (also in the list context menu) attaches .srt files to an
+    audio/video cue; dropping .srt/.vtt files on the list attaches them to the video with the same name dropped
+    together, or to the selected cue.
+  - **Subtitles inside video files**: when a video is added, its subtitle tracks are detected (ffprobe); if
+    there are any, Cuevivo asks which ones to use and whether to **import them into an SRT cue** attached to the
+    video, **export them to .srt files** next to the video (`video.it.srt`…), or both. Text subtitles (SubRip,
+    mov_text, ASS/SSA, WebVTT…) are converted with ffmpeg in a single read of the file; image-based ones (DVD,
+    Blu-ray PGS, DVB) are listed but cannot be converted. **From the video…** in the inspector does the same
+    later.
 - **Area** in % of the output (x, y, width, height) with quick positions (subtitle at the bottom, surtitle at the
   top, centre, full screen); horizontal and vertical **alignment**; font, size (px referred to an output 1080
   high), bold/italic, colour, **outline**, **background** (behind the text or the whole area, with opacity),

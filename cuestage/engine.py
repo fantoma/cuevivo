@@ -2084,19 +2084,66 @@ class GroupInstance(Instance):
 
 class TextInstance(Instance):
     """Testo in uscita (sottotitoli): con «sequence» ogni GO passa alla frase successiva; dopo l'ultima il
-    GO successivo esce (il testo sfuma e il GO va alla cue seguente). ESC esce subito."""
+    GO successivo esce (il testo sfuma e il GO va alla cue seguente). ESC esce subito.
+    Con «srt» i sottotitoli seguono la posizione del file della cue audio/video agganciata (IN, loop, pausa,
+    salti compresi) e la cue finisce quando finisce quella."""
 
     def start(self, silent=False):
         from .text_render import split_phrases
         c = self.cue
         self.lst, _i = self.ctrl.show.list_of(c.id)
+        self.layers = []         # [(layer, chiave, inviluppo)]
+        self.n = 0
+        self.idx = 0
+        if c.text_mode == "srt":
+            self.phrases = [""]
+            self._srt_seen = False       # la cue agganciata è partita (quando finisce, finiscono i sottotitoli)
+            self._srt_text = None        # testo in uscita
+            self._srt_pos = None         # posizione del file agganciato
+            self._srt_lang = ""
+            self._srt_tick()
+            return
         self.phrases = split_phrases(c.text_content) if c.text_mode == "sequence" else [c.text_content or ""]
         if not self.phrases:
             self.phrases = [""]
-        self.idx = 0
-        self.layers = []         # [(layer, chiave, inviluppo)]
-        self.n = 0
         self._show(0, float(c.text_fade or 0))
+
+    # --- sottotitoli a tempo (SRT)
+    def _srt_target(self):
+        """Istanza in corso della cue agganciata (None se non c'è o non suona)."""
+        tid = self.cue.srt_target
+        inst = self.ctrl.instances.get(tid) if tid else None
+        return inst if (inst is not None and not inst.done) else None
+
+    def _srt_parsed(self):
+        from . import srt
+        tk = srt.pick_track(self.cue, self.ctrl.show)
+        if tk is None:
+            self._srt_lang = ""
+            return None
+        self._srt_lang = srt.norm_lang(tk.get("lang"))
+        return srt.parse(tk.get("srt") or "")
+
+    def _srt_tick(self):
+        tg = self._srt_target()
+        if tg is None:
+            if self._srt_seen:                       # la cue agganciata è finita (o è stata fermata)
+                self.stop(float(self.cue.text_fade or 0))
+            return
+        self._srt_seen = True
+        try:
+            pos = float(tg.position())
+        except Exception:
+            return
+        p = self._srt_parsed()
+        self._srt_pos = pos
+        t = pos - float(self.cue.srt_offset or 0)
+        text = p.text_at(t) if p is not None else ""
+        self.idx = p.index_at(t) if p is not None else 0
+        self.phrases = p.entries if p is not None else [""]
+        if text != self._srt_text:
+            self._srt_text = text
+            self._show_text(text, min(float(self.cue.text_fade or 0), 0.25))
 
     def _image(self, text):
         from .text_render import render_text
@@ -2104,43 +2151,56 @@ class TextInstance(Instance):
         return render_text(self.cue, text, int(W), int(H))
 
     def _show(self, idx, fade):
+        self._show_text(self.phrases[idx], fade)
+        self.idx = idx
+        self.ctrl.changed.emit()
+
+    def _show_text(self, text, fade):
+        """Il testo in uscita sfuma, quello nuovo entra (nessun layer per un testo vuoto dei sottotitoli)."""
         ctrl = self.ctrl
         now = ctrl.clock
         for lay, key, env in self.layers:        # la frase precedente sfuma
             env.ramp_to(now, 0.0, fade)
+        if not text and self.cue.text_mode == "srt":
+            ctrl.comp.changed()
+            return
         self.n += 1
         key = f"{self.key}#t{self.n}"
         lay = ctrl.comp.add(key, int(self.cue.layer), "stretch", cue=None)
-        lay.image = self._image(self.phrases[idx])
+        lay.image = self._image(text)
         env = Envelope(0.0 if fade > 0 else 1.0)
         if fade > 0:
             env.ramp_to(now, 1.0, fade)
         lay.opacity = env.get(now) * self.trim_op
         self.layers.append((lay, key, env))
-        self.idx = idx
         ctrl.comp.changed()
-        ctrl.changed.emit()
 
     @property
     def captures_go(self):
         return self.cue.text_mode == "sequence" and not self.done and self.idx < len(self.phrases) - 1
 
     def next(self):
-        if self.idx < len(self.phrases) - 1:
+        if self.cue.text_mode != "srt" and self.idx < len(self.phrases) - 1:
             self._show(self.idx + 1, float(self.cue.text_fade or 0))
 
     def prev(self):
-        if self.idx > 0:
+        if self.cue.text_mode != "srt" and self.idx > 0:
             self._show(self.idx - 1, float(self.cue.text_fade or 0))
 
     def goto(self, idx):
-        if 0 <= idx < len(self.phrases):
+        if self.cue.text_mode != "srt" and 0 <= idx < len(self.phrases):
             self._show(idx, float(self.cue.text_fade or 0))
 
     def refresh(self):
         """Testo o stile modificati durante la riproduzione: ridisegna la frase corrente."""
         from .text_render import split_phrases
         c = self.cue
+        if c.text_mode == "srt":
+            if self.layers:
+                self.layers[-1][0].image = self._image(self._srt_text or "")
+                self.layers[-1][0].z = int(c.layer)
+                self.ctrl.comp.changed()
+            return
         self.phrases = (split_phrases(c.text_content) if c.text_mode == "sequence" else [c.text_content or ""]) or [""]
         self.idx = min(self.idx, len(self.phrases) - 1)
         if self.layers:
@@ -2166,6 +2226,10 @@ class TextInstance(Instance):
         if getattr(self, "_closing", False) and all(env.get(now) <= 0.001 for _l, _k, env in self.layers):
             self.finish()
             return
+        if self.cue.text_mode == "srt":
+            if not self.paused and not getattr(self, "_closing", False):
+                self._srt_tick()
+            return
         d = float(self.cue.duration or 0)
         if self.cue.text_mode == "free" and d > 0 and self.elapsed >= d:
             self.stop(float(self.cue.text_fade or 0))
@@ -2184,9 +2248,18 @@ class TextInstance(Instance):
         return None
 
     def progress(self):
+        if self.cue.text_mode == "srt":
+            tg = self._srt_target()
+            tot = tg.total() if tg is not None else None
+            return min(1.0, max(0.0, self._srt_pos / tot)) if (tot and self._srt_pos is not None) else None
         return (self.idx + 1) / len(self.phrases) if self.cue.text_mode == "sequence" else None
 
     def status_text(self):
+        if self.cue.text_mode == "srt":
+            if not self._srt_seen:
+                tg = self.ctrl.show.by_id(self.cue.srt_target) if self.cue.srt_target else None
+                return tr("SRT: in attesa di «{0}»", tg.label()) if tg is not None else tr("SRT: nessuna cue agganciata")
+            return tr("SRT {0} · {1}/{2}", self._srt_lang or "?", self.idx, len(self.phrases))
         if self.cue.text_mode == "sequence":
             return tr("frase {0}/{1}", self.idx + 1, len(self.phrases))
         return "testo"
@@ -2866,6 +2939,7 @@ class Controller(QObject):
                     if cue.is_visual() and self.visual_started:
                         self.visual_started()
                     self._group_go_xfade(cue, inst)
+                    self._start_subtitles(cue, depth)
             if cascade:
                 nxt = self._next(cue)
                 if nxt is not None and nxt.trigger == "with_prev":
@@ -2874,6 +2948,19 @@ class Controller(QObject):
             self._depth = prev_depth
         self.changed.emit()
         return inst if (inst is not None and not inst.done) else None
+
+    def _start_subtitles(self, cue, depth=0):
+        """Una cue audio/video è partita: partono anche le cue SRT agganciate a lei con «parte con la cue»
+        (se non sono già in corso)."""
+        if cue.type not in ("audio", "video"):
+            return
+        for c in self.show.all_cues():
+            if c.type != "text" or c.text_mode != "srt" or c.srt_target != cue.id or not c.srt_auto:
+                continue
+            cur = self.instances.get(c.id)
+            if cur is not None and not cur.done and not getattr(cur, "_closing", False):
+                continue
+            self.start_cue(c, cascade=False, depth=depth + 1)
 
     GO_XFADE_TYPES = ("audio", "video", "image", "pdf", "text")
 

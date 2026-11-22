@@ -324,6 +324,12 @@ class CueTableModel(QAbstractTableModel):
                             "all": tr("tutte insieme (con i loro pre-wait)")}.get(m, "")
                 if cue.type == "text":
                     from .text_render import split_phrases
+                    if cue.text_mode == "srt":
+                        from .srt import norm_lang
+                        tg = self.show.by_id(cue.srt_target) if cue.srt_target else None
+                        langs = ", ".join(norm_lang(t.get("lang")) or "?" for t in cue.srt_tracks or [])
+                        return tr("SRT → {0} · {1}", tg.label() if tg is not None else tr("nessuna cue"),
+                                  langs or tr("nessun file"))
                     if cue.text_mode == "sequence":
                         ps = split_phrases(cue.text_content)
                         first = ps[0].replace("\n", " / ") if ps else tr("— nessun testo —")

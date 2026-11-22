@@ -217,6 +217,8 @@ class ListsMixin:
                 k.group = idmap[k.group]
                 if k.type == "groupexit":
                     k.target = k.group
+            if k.type == "text" and k.srt_target in idmap:   # sottotitoli copiati col loro video
+                k.srt_target = idmap[k.srt_target]
         n = self.show_data.next_number()
         try:
             for j, k in enumerate(clones):
@@ -356,6 +358,9 @@ class ListsMixin:
         if rows:
             m.addAction(tr("Duplica"), self.duplicate)
             m.addAction(tr("Crea collegamento"), self.create_link)
+            cur0 = self._current_cue()
+            if cur0 is not None and cur0.type in ("audio", "video"):
+                m.addAction(tr("Sottotitoli SRT…"), self.add_subtitles)
             m.addAction(tr("Abilita / disabilita"), self.toggle_disabled)
             m.addAction(tr("Elimina"), self.delete_cues)
             sub = m.addMenu(tr("Sposta in"))

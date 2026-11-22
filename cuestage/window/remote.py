@@ -72,6 +72,13 @@ class RemoteMixin:
             self.text_step(1 if a.endswith("next") else -1)
         elif a == "/text/goto" and args:
             self.ctrl.text_goto(int(args[0]) - 1)
+        elif a == "/text/lang":
+            # lingua dello show per le cue SRT: /text/lang it · senza argomento = prima traccia
+            from ..srt import norm_lang
+            self.show_data.settings["sub_lang"] = norm_lang(str(args[0])) if args else ""
+            ic = getattr(self.inspector, "cue", None)
+            if ic is not None and ic.type == "text" and ic.text_mode == "srt":
+                self.inspector.rebuild()
         elif a == "/xfade":
             self.ctrl.crossfade(float(args[0]) if args else float(self.show_data.settings.get("xfade_time", 3.0)))
         elif a == "/xfader" and args:

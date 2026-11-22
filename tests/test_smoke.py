@@ -4531,6 +4531,88 @@ def t_disable(w):
     w.show_data.dirty = False
 
 
+def t_text_srt(w):
+    """Cue Testo SRT: sottotitoli trovati nel video all'inserimento (importati in una cue e esportati in .srt),
+    più lingue con la lingua dello show cambiata dal vivo, tempi seguiti dalla posizione del video, controllo
+    dei tempi rispetto alla durata del file."""
+    import subprocess
+    from cuestage import srt
+    from cuestage.media import FFMPEG
+    base = make_video("srt_base.mp4", sec=4)
+    subs = {"ita": "1\n00:00:00,300 --> 00:00:01,500\nUno\n\n2\n00:00:02,000 --> 00:00:03,500\n<i>Due</i>\n",
+            "eng": "1\n00:00:00,300 --> 00:00:01,500\nOne\n\n2\n00:00:02,000 --> 00:00:03,500\nTwo\n"}
+    files = []
+    for k, txt in subs.items():
+        fp = os.path.join(TMP, f"srt_in_{k}.srt")
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(txt)
+        files.append(fp)
+    path = os.path.join(TMP, "srt_film.mp4")
+    for old in os.listdir(TMP):
+        if old.startswith("srt_film.") and old.endswith(".srt"):
+            os.remove(os.path.join(TMP, old))
+    subprocess.run([FFMPEG, "-v", "error", "-y", "-i", base, "-i", files[0], "-i", files[1],
+                    "-map", "0", "-map", "1", "-map", "2", "-c:v", "copy", "-c:a", "copy", "-c:s", "mov_text",
+                    "-metadata:s:s:0", "language=ita", "-metadata:s:s:1", "language=eng", path],
+                   check=True, capture_output=True)
+    st = srt.probe_subs(path)
+    assert [(x["lang"], x["text"]) for x in st] == [("it", True), ("en", True)], st
+    # lettura e controllo dei tempi
+    p = srt.parse("1\n00:00:01,000 --> 00:00:02,000\nA\n\n2\n00:00:01,500 --> 00:00:01,600\nB\n\n"
+                  "3\n00:00:09,000 --> 00:00:08,000\nC\n\nx\n\n4\n00:00:12,000 --> 00:00:13,000\nD\n")
+    codes = {i[1] for i in p.issues} | {i[1] for i in srt.check_media(p, 10.0, 0.0, 0.0)}
+    assert {"overlap", "short", "end_before", "syntax", "beyond"} <= codes, codes
+    assert p.text_at(1.55) == "A\nB" and p.text_at(0.5) == "" and p.text_at(12.5) == "D"
+    assert srt.lang_from_name("/x/Film.ITA.srt") == "it" and srt.lang_from_name("f_en.vtt") == "en"
+    assert srt.decode("perché".encode("cp1252")) == ("perché", "cp1252")
+    vtt = srt.parse("WEBVTT\n\n00:01.000 --> 00:02.500 align:start\nCiao\n")
+    assert vtt.entries == [(1.0, 2.5, "Ciao", 1)] and not vtt.issues, (vtt.entries, vtt.issues)
+    # inserimento del video: i sottotitoli trovati vanno in una cue SRT e in file .srt accanto al video
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    w._set_show(sh)
+    run(0.2)
+    asked = []
+    w._ask_subtitles = lambda cue, streams: (asked.append(len(streams)) or ([0, 1], "both"))
+    try:
+        w._files_dropped([path], 0)
+    finally:
+        del w._ask_subtitles
+    assert asked == [2], asked
+    v = next(c for c in sh.cues if c.type == "video")
+    sc = next(c for c in sh.cues if c.type == "text")
+    assert sc.text_mode == "srt" and sc.srt_target == v.id and sc.srt_auto and sc.trigger == "trigger"
+    assert [t["lang"] for t in sc.srt_tracks] == ["it", "en"], sc.srt_tracks
+    assert os.path.isfile(os.path.join(TMP, "srt_film.it.srt")) and os.path.isfile(os.path.join(TMP, "srt_film.en.srt"))
+    assert "Two" in open(os.path.join(TMP, "srt_film.en.srt"), encoding="utf-8").read()
+    # l'ispettore mostra la cue agganciata e il controllo dei tempi
+    from PySide6.QtWidgets import QComboBox, QTableWidget
+    w.inspector.set_cue(sc)
+    run(0.2)
+    tbl = next(t for t in w.inspector.findChildren(QTableWidget) if t.columnCount() == 4)
+    assert tbl.rowCount() == 2 and tbl.item(1, 0).text() == "en"
+    assert any(cb.currentData() == v.id for cb in w.inspector.findChildren(QComboBox))
+    # riproduzione: la cue SRT parte con il video e segue la sua posizione; la lingua si cambia dal vivo
+    sh.settings["sub_lang"] = "en"
+    w.ctrl.start_cue(v)
+    assert wait_until(lambda: sc.id in w.ctrl.instances, 5)
+    ti = w.ctrl.instances[sc.id]
+    assert wait_until(lambda: ti._srt_text == "One", 8), ti._srt_text
+    assert wait_until(lambda: ti._srt_text == "Two", 8), ti._srt_text
+    w._osc_message("/text/lang", ["ita"])
+    assert wait_until(lambda: ti._srt_text == "Due", 2), ti._srt_text
+    assert ti.status_text().startswith("SRT it")
+    w.ctrl.stop_cue(v.id, 0.0)
+    assert wait_until(lambda: ti.done, 3), "la cue SRT non finisce con il video"
+    # la lingua della cue vince su quella dello show; una lingua che non c'è usa la prima traccia
+    sc.srt_lang = "en"
+    assert srt.pick_track(sc, sh)["lang"] == "en"
+    sc.srt_lang = "de"
+    assert srt.pick_track(sc, sh)["lang"] == "it"
+    w.ctrl.stop_all(0)
+    run(0.2)
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -5489,6 +5571,7 @@ if __name__ == "__main__":
     check("gruppo Stinger: PRE e POST attorno a ogni cue, partenze, esclusioni, crossfade, cambio di tipo",
           lambda: t_stinger(w))
     check("cue, gruppi e PANEL disabilitati: non partono, il GO li salta, grigi e barrati", lambda: t_disable(w))
+    check("Cue Testo SRT: sottotitoli del video, più lingue, tempi agganciati, controllo dei tempi", lambda: t_text_srt(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

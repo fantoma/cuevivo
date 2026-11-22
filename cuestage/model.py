@@ -208,7 +208,7 @@ class Cue:
         "group_exit": "fade",       # uscita da un loop: «fade» sfuma la cue corrente · «finish» la lascia finire
         "collapsed": False,
         # cue Testo (sottotitoli / sopratitoli): «sequence» = una frase per GO (frasi separate da una riga
-        # vuota), «free» = tutto il testo insieme
+        # vuota), «free» = tutto il testo insieme, «srt» = sottotitoli a tempo (vedi sotto)
         "text_mode": "sequence", "text_content": "",
         "text_area": [5.0, 78.0, 90.0, 18.0],      # x, y, larghezza, altezza in % dell'uscita
         "text_halign": "center", "text_valign": "bottom",
@@ -216,6 +216,11 @@ class Cue:
         "text_color": "#ffffff", "text_outline": 2.0, "text_outline_color": "#000000",
         "text_bg": "", "text_bg_opacity": 60.0, "text_bg_mode": "block", "text_padding": 12.0,
         "text_fit": "shrink", "text_max_lines": 2, "text_spacing": 100.0, "text_fade": 0.3,
+        # «srt» = sottotitoli a tempo agganciati alla posizione di una cue audio/video (srt_target, id):
+        # una traccia per lingua [{lang, name, srt (testo del file)}]; srt_lang «» = lingua dello show
+        # (settings["sub_lang"]); srt_offset sposta tutti i tempi (s, positivo = più tardi)
+        # (srt_auto: la cue parte da sola quando parte quella agganciata)
+        "srt_target": "", "srt_tracks": [], "srt_lang": "", "srt_offset": 0.0, "srt_auto": True,
         # cue PDF: pagine mostrate (indici da 0, nell'ordine; vuoto = tutte) e dissolvenza tra le pagine (s)
         "pdf_pages": [], "pdf_fade": 0.3,
         # cue PDF: dopo l'ultima pagina il GO che passa alla cue successiva la ferma (con il suo fade out)

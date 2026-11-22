@@ -653,6 +653,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         m.addSeparator()
         add(m, tr("Duplica"), self.duplicate, "Ctrl+D")
         add(m, tr("Crea collegamento alla cue selezionata"), self.create_link, "Ctrl+L")
+        add(m, tr("Sottotitoli SRT per la cue selezionata…"), self.add_subtitles)
         add(m, tr("Abilita / disabilita le selezionate"), self.toggle_disabled, "Ctrl+Shift+D")
         add(m, tr("Elimina"), self.delete_cues, "Delete")
         add(m, tr("Sposta su"), lambda: self.move_selected(-1), "Ctrl+Up")
