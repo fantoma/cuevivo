@@ -749,9 +749,22 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
             lm.addAction(a)
 
         m = mb.addMenu(tr("&Aiuto"))
+        self.help_menu = m
         add(m, tr("Comandi OSC / MIDI / tastiera"), lambda: HelpDialog(self).exec())
         add(m, tr("Diagnostica…"), self.diagnostics_dialog)
         add(m, tr("Informazioni"), self._about)
+
+    def start_update_check(self):
+        """All'avvio: la versione pubblicata sul sito si controlla in un thread che non blocca; se è più recente,
+        accanto ad «Aiuto» compare «Vedi la nuova versione» (CUEVIVO_NO_UPDATE_CHECK=1 lo disattiva)."""
+        from . import __version__
+        from .appinfo import env
+        from .update_check import UpdateChecker
+        if str(env("NO_UPDATE_CHECK", "") or "").strip() not in ("", "0"):
+            return None
+        self.update_checker = UpdateChecker(self, __version__)
+        self.update_checker.start()
+        return self.update_checker
 
     def diagnostics_dialog(self):
         """Aiuto › Diagnostica: carico del processore, buffer audio, uscita video, errori."""

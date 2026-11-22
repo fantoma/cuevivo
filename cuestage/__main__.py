@@ -79,6 +79,8 @@ def main():
     for p in app.pending:                    # file aperti dal Finder prima che la finestra esistesse
         w.open_show(p)
     w.show()
+    from PySide6.QtCore import QTimer
+    QTimer.singleShot(0, w.start_update_check)     # controllo della nuova versione: non blocca l'avvio
     sys.exit(app.exec())
 
 

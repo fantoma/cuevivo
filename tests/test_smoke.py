@@ -4762,6 +4762,56 @@ def t_text_local_lang(w):
         w.set_local_sub_lang("")
 
 
+def t_update_check(w):
+    """Controllo della nuova versione in un thread: se il sito ne ha una più recente, accanto ad «Aiuto» compare
+    la scritta rossa che apre la pagina; con una versione uguale o più vecchia (o senza rete) niente."""
+    import http.server
+    import threading
+    from cuestage.i18n import tr
+    from cuestage.update_check import PAGE_URL, UpdateChecker, is_newer, parse_version
+    assert parse_version("1.0.32\n") == "1.0.32" and parse_version('{"version": "v1.1.0"}') == "1.1.0"
+    assert parse_version("<html>errore</html>") is None
+    assert is_newer("1.0.32", "1.0.31") and is_newer("1.1", "1.0.31") and not is_newer("1.0.31", "1.0.31")
+    assert not is_newer("1.0.9", "1.0.31")
+    answer = {"text": "1.0.32"}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            b = answer["text"].encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+
+        def log_message(self, *a):
+            pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_port}/version.php"
+    try:
+        old = UpdateChecker(w, "1.0.32", url=url)          # stessa versione: niente
+        old.start()
+        run(0.8)
+        assert old.label is None
+        up = UpdateChecker(w, "1.0.31", url=url)
+        up.start()
+        assert wait_until(lambda: up.label is not None and up.label.isVisible(), 5)
+        assert tr("Vedi la nuova versione") in up.label.text() and PAGE_URL in up.label.text()
+        assert "#ff4040" in up.label.text() and up.label.openExternalLinks()
+        run(0.1)
+        g = w.menuBar().actionGeometry(w.help_menu.menuAction())
+        assert up.label.x() > g.right(), (up.label.x(), g.right())
+        none = UpdateChecker(w, "1.0.31", url="http://127.0.0.1:9/nessuno")   # senza risposta: niente
+        none.start()
+        run(0.5)
+        assert none.label is None
+    finally:
+        srv.shutdown()
+        for c in (locals().get("up"), locals().get("old")):
+            if c is not None and c.label is not None:
+                c.label.deleteLater()
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -5724,6 +5774,7 @@ if __name__ == "__main__":
     check("Cue Testo in sequenza: tempi memorizzati sul video agganciato, Tempi e SRT, trasformazione", lambda: t_text_rec(w))
     check("Cue Testo «non inviare allo schermo master»: anteprima sì, uscita no, slave normale sì", lambda: t_text_no_master(w))
     check("Sottotitoli: lingua di questa istanza (slave), menu, OSC, preferenze", lambda: t_text_local_lang(w))
+    check("Nuova versione: controllo in un thread, scritta rossa accanto ad Aiuto", lambda: t_update_check(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

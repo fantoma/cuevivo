@@ -670,6 +670,13 @@ and its parent, the home folder and the external drives. **Locate file…** (or 
 point to one file by hand, and the same folder move is then tried on all the other missing files. **Relink found
 files** updates the cues (all versions); undo works as for any other change.
 
+**New versions.** At start-up, after the initial notice, Cuevivo checks in the background (it never blocks or
+slows the start) the version published at `https://www.fantoma.it/cuevivo/version.php` (plain text such as
+`1.0.32`, or JSON `{"version": "1.0.32"}`). If it is newer than the running one, a red **“See the new version”**
+appears next to the **Help** menu and opens `https://www.fantoma.it/cuevivo` (with the system menu bar of macOS
+it is an extra menu after Help). Without network nothing happens; `CUEVIVO_NO_UPDATE_CHECK=1` disables the
+check.
+
 **Shows from a newer version.** The show file records the Cuevivo version that saved it. Opening a show saved
 by a newer Cuevivo (or containing data this version doesn't know) shows a warning: cues of an unknown type are
 shown as **Memo** (they don't start), and every unknown field — of the show, its settings, the cues, the PANELs and
