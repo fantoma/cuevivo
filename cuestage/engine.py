@@ -2106,7 +2106,58 @@ class TextInstance(Instance):
         self.phrases = split_phrases(c.text_content) if c.text_mode == "sequence" else [c.text_content or ""]
         if not self.phrases:
             self.phrases = [""]
+        self._rec_start()
         self._show(0, float(c.text_fade or 0))
+
+    # --- tempi memorizzati della sequenza (per i sottotitoli SRT)
+    def _rec_start(self):
+        """Con «Memorizza i tempi» ogni frase registra quando compare e quando sparisce, in secondi del file
+        della cue agganciata (se suona) o dall'avvio della cue. Cambiando riferimento i tempi vecchi si tolgono."""
+        c = self.cue
+        self._rec = c.text_mode == "sequence" and bool(c.text_rec)
+        self._rec_cur = None
+        self._rec_last = None
+        if not self._rec:
+            return
+        tg = self._srt_target()
+        ref = c.srt_target if tg is not None else ""
+        if ref != (c.text_times_ref or "") and any(c.text_times or []):
+            c.text_times = []
+        c.text_times_ref = ref
+        self._rec_ref = tg
+
+    def _rec_time(self):
+        tg = self._rec_ref
+        if tg is None:
+            return self.elapsed
+        if not tg.done:
+            try:
+                self._rec_last = (float(tg.position()), self.ctrl.clock)
+            except Exception:
+                pass
+        if self._rec_last is None:
+            return 0.0
+        pos, at = self._rec_last
+        return pos + (self.ctrl.clock - at if tg.done else 0.0)
+
+    def _rec_mark(self, idx):
+        """La frase idx compare (None = esce tutto): chiude quella in uscita, apre la nuova."""
+        if not getattr(self, "_rec", False):
+            return
+        c = self.cue
+        t = round(self._rec_time(), 3)
+        times = [list(x) if isinstance(x, (list, tuple)) and len(x) == 2 else [None, None]
+                 for x in (c.text_times or [])]
+        need = max(len(self.phrases), (idx + 1) if idx is not None else 0)
+        while len(times) < need:
+            times.append([None, None])
+        if self._rec_cur is not None and self._rec_cur < len(times):
+            times[self._rec_cur][1] = t
+        if idx is not None:
+            times[idx] = [t, None]
+        self._rec_cur = idx
+        c.text_times = times
+        self.ctrl.show.dirty = True
 
     # --- sottotitoli a tempo (SRT)
     def _srt_target(self):
@@ -2151,6 +2202,7 @@ class TextInstance(Instance):
         return render_text(self.cue, text, int(W), int(H))
 
     def _show(self, idx, fade):
+        self._rec_mark(idx)
         self._show_text(self.phrases[idx], fade)
         self.idx = idx
         self.ctrl.changed.emit()
@@ -2230,11 +2282,15 @@ class TextInstance(Instance):
             if not self.paused and not getattr(self, "_closing", False):
                 self._srt_tick()
             return
+        if getattr(self, "_rec", False) and self._rec_ref is not None and not self._rec_ref.done:
+            self._rec_time()                     # ultima posizione nota del file di riferimento
         d = float(self.cue.duration or 0)
         if self.cue.text_mode == "free" and d > 0 and self.elapsed >= d:
             self.stop(float(self.cue.text_fade or 0))
 
     def stop(self, fade=0.0):
+        if getattr(self, "_rec_cur", None) is not None:
+            self._rec_mark(None)
         self.user_stopped = True
         if fade > 0:
             now = self.ctrl.clock
@@ -2265,6 +2321,8 @@ class TextInstance(Instance):
         return "testo"
 
     def cleanup(self):
+        if getattr(self, "_rec_cur", None) is not None:
+            self._rec_mark(None)
         for lay, key, env in self.layers:
             self.ctrl.comp.remove(key, lay)
         self.layers = []

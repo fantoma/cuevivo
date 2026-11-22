@@ -221,6 +221,10 @@ class Cue:
         # (settings["sub_lang"]); srt_offset sposta tutti i tempi (s, positivo = più tardi)
         # (srt_auto: la cue parte da sola quando parte quella agganciata)
         "srt_target": "", "srt_tracks": [], "srt_lang": "", "srt_offset": 0.0, "srt_auto": True,
+        # «sequence»: con text_rec ogni frase mostrata memorizza [inizio, fine] in text_times (indice = frase),
+        # in secondi del file della cue agganciata srt_target se suona, altrimenti dall'avvio della cue;
+        # text_times_ref = id della cue di riferimento dei tempi memorizzati («» = avvio della cue)
+        "text_rec": False, "text_times": [], "text_times_ref": "",
         # cue PDF: pagine mostrate (indici da 0, nell'ordine; vuoto = tutte) e dissolvenza tra le pagine (s)
         "pdf_pages": [], "pdf_fade": 0.3,
         # cue PDF: dopo l'ultima pagina il GO che passa alla cue successiva la ferma (con il suo fade out)

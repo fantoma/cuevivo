@@ -4613,6 +4613,60 @@ def t_text_srt(w):
     run(0.2)
 
 
+def t_text_rec(w):
+    """Sequenza di frasi con «Memorizza i tempi»: ogni GO registra i tempi sul file del video agganciato;
+    la finestra Tempi e SRT li sposta, li esporta e trasforma la cue in sottotitoli a tempo."""
+    from cuestage import srt
+    from cuestage.ui_subs import TimesDialog
+    path = make_video("rec.mp4", sec=6)
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    v = Cue("video", number="1", name="Film", file=path)
+    t = Cue("text", number="2", name="Frasi", text_content="Uno\n\nDue\n\n_\n\nTre", trigger="with_prev",
+            text_rec=True, srt_target=v.id)
+    sh.cues[:] = [v, t]
+    w._set_show(sh)
+    w.ctrl.set_playhead(0)
+    run(0.3)
+    w.go()
+    assert wait_until(lambda: t.id in w.ctrl.instances and v.id in w.ctrl.instances, 5)
+    vi = w.ctrl.instances[v.id]
+    marks = []
+    for at in (1.0, 2.0, 2.5):
+        assert wait_until(lambda: vi.position() >= at, 8), vi.position()
+        marks.append(vi.position())
+        w.go()
+        run(0.05)
+    assert wait_until(lambda: vi.position() >= 3.0, 8)
+    w.ctrl.stop_all(0)
+    run(0.3)
+    assert t.text_times_ref == v.id, t.text_times_ref
+    tm = t.text_times
+    assert len(tm) == 4 and all(x[0] is not None and x[1] is not None for x in tm), tm
+    assert tm[0][0] < 0.5 and all(abs(tm[k + 1][0] - marks[k]) < 0.3 for k in range(3)), (tm, marks)
+    assert all(abs(tm[k][1] - tm[k + 1][0]) < 0.001 for k in range(3)) and tm[3][1] >= 2.9, tm
+    # finestra: la frase vuota «_» non diventa un sottotitolo; spostamento, poi trasformazione
+    dlg = TimesDialog(w, t, sh)
+    p = srt.parse(dlg.srt_text())
+    assert [e[2] for e in p.entries] == ["Uno", "Due", "Tre"], p.entries
+    # marker sul video: per una riga, poi per tutti i tempi (senza doppioni; la riga «_» non ne crea)
+    assert dlg.add_markers(v.id, [1]) == 1 and [m["name"] for m in v.markers] == ["Due"]
+    assert dlg.add_markers(v.id) == 2 and [m["name"] for m in v.markers] == ["Uno", "Due", "Tre"], v.markers
+    assert abs(v.markers[1]["t"] - round(tm[1][0], 3)) < 0.002
+    dlg.shift_all(0.5)
+    dlg.convert(v.id, "ita")
+    dlg.deleteLater()
+    assert t.text_mode == "srt" and t.srt_target == v.id and t.trigger == "trigger" and t.srt_auto
+    assert [k["lang"] for k in t.srt_tracks] == ["it"]
+    p2 = srt.parse(t.srt_tracks[0]["srt"])
+    assert abs(p2.entries[1][0] - (round(tm[1][0], 3) + 0.5)) < 0.002, (p2.entries, tm)
+    assert "Uno" in t.text_content                 # il testo della sequenza resta
+    # tempi mancanti: la fine è l'inizio della frase dopo (al massimo 3 s)
+    txt = srt.phrases_to_srt(["A", "B", "C"], [[1.0, None], [2.0, None], [None, None]])
+    assert [(e[0], e[1], e[2]) for e in srt.parse(txt).entries] == [(1.0, 2.0, "A"), (2.0, 5.0, "B")]
+    assert srt.parse_time("00:01:02,500") == 62.5 and srt.parse_time("1:02.5") == 62.5 and srt.parse_time("x") is None
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -5572,6 +5626,7 @@ if __name__ == "__main__":
           lambda: t_stinger(w))
     check("cue, gruppi e PANEL disabilitati: non partono, il GO li salta, grigi e barrati", lambda: t_disable(w))
     check("Cue Testo SRT: sottotitoli del video, più lingue, tempi agganciati, controllo dei tempi", lambda: t_text_srt(w))
+    check("Cue Testo in sequenza: tempi memorizzati sul video agganciato, Tempi e SRT, trasformazione", lambda: t_text_rec(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

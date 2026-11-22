@@ -286,6 +286,17 @@ The text is drawn on the video output, above (or below, with the **layer**) the 
   fades and GO moves to the next cue. **Alt+←/Alt+→** previous/next line, **ESC** leaves the text, OSC
   `/text/next`, `/text/prev`, `/text/goto <n>`. **Import .txt / .srt** loads the lines from a file (only the
   texts are kept from an .srt).
+  - **Record the times at every GO**: while the cue runs (in rehearsal or in the show) every line records when
+    it appears and when it disappears, in seconds of the file of the chosen **audio/video cue** (which must
+    already be playing when the text cue starts — e.g. the video right before it, the text “with previous”);
+    with no cue chosen, the times count from the start of the text cue. A line shown again replaces its old
+    times; “_” lines only end the previous line. **Times and SRT…** opens a table of start, end and text to
+    correct them by hand, shift them all, clear them, **export them as .srt**, or **turn the cue into a timed
+    subtitle cue** (SRT, below) attached to the audio/video cue, with a language of choice: the cue then starts
+    by itself with that cue (trigger only); the sequence text stays in the cue, so switching back to “Sequence
+    of lines” brings it back. **Markers on the attached cue**: one marker at the start of every line with a time
+    (**For all times**) or only for the **selected rows**, named after the line; existing identical markers are
+    not duplicated.
 - **Free text**: all the text together, until STOP or for the given **duration**.
 - **Timed subtitles (SRT)** attached to an **audio/video cue**: the subtitles follow the *file position* of that
   cue, so IN point, loops, pause, “Restart from here” and jumps are all respected; when the attached cue ends (or
@@ -311,6 +322,8 @@ The text is drawn on the video output, above (or below, with the **layer**) the 
     mov_text, ASS/SSA, WebVTT…) are converted with ffmpeg in a single read of the file; image-based ones (DVD,
     Blu-ray PGS, DVB) are listed but cannot be converted. **From the video…** in the inspector does the same
     later.
+  - **Markers…** creates markers on the attached cue at the start of the subtitles of the language in use (delay
+    included): for all subtitles or only for the one shown in the preview.
 - **Area** in % of the output (x, y, width, height) with quick positions (subtitle at the bottom, surtitle at the
   top, centre, full screen); horizontal and vertical **alignment**; font, size (px referred to an output 1080
   high), bold/italic, colour, **outline**, **background** (behind the text or the whole area, with opacity),

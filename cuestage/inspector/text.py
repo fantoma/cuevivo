@@ -46,6 +46,9 @@ class TextTabMixin:
             imp.hide()
             sp_w, srt_refresh = self._srt_panel(cue)
             left.addWidget(sp_w, 1)
+        rec_info = None
+        if cue.text_mode == "sequence":
+            rec_info = self._rec_row(cue, left)
         info = QLabel()
         info.setStyleSheet("color:#999;")
         info.setWordWrap(True)
@@ -198,6 +201,10 @@ class TextTabMixin:
                              if cue.text_mode == "sequence" else tr("Il testo compare intero all'avvio della cue"))
             if srt_refresh is not None:
                 srt_refresh()
+            if rec_info is not None:
+                n = sum(1 for x in (cue.text_times or [])[:len(ps)]
+                        if isinstance(x, (list, tuple)) and x and x[0] is not None)
+                rec_info.setText(tr("tempi: {0}/{1} frasi", n, len(ps)))
             W, H = self.ctrl.comp.out_size
             img = render_text(cue, ps[pn.value() - 1], int(W), int(H))
             pm = QPixmap(320, 180)
@@ -224,6 +231,7 @@ class TextTabMixin:
                                                   QTimer.singleShot(0, self.rebuild)))
         fc.currentFontChanged.connect(lambda font: (setattr(cue, "text_font", font.family()), self._emit()))
         pn.valueChanged.connect(lambda _v: redraw())
+        self._srt_preview_n = pn.value
 
         def area_changed(*_):
             cue.text_area = [round(sp.value(), 1) for sp in spins]
@@ -266,6 +274,51 @@ class TextTabMixin:
         live.setVisible(not is_srt)
         redraw()
         return w
+
+    def _rec_row(self, cue, layout):
+        """Sequenza di frasi: memorizza i tempi a ogni GO (sul file di una cue audio/video agganciata),
+        poi «Tempi e SRT…» per correggerli, esportarli o trasformare la cue in sottotitoli a tempo."""
+        from ..model import TYPE_LABELS
+        sh = self.show_fn()
+        row = QHBoxLayout()
+        cb = QCheckBox(tr("Memorizza i tempi a ogni GO"))
+        cb.setChecked(bool(cue.text_rec))
+        cb.setToolTip(tr("Mentre la cue va (prova o spettacolo) ogni frase registra quando compare e quando "
+                         "sparisce; i tempi vecchi di quella frase vengono sostituiti"))
+        cb.toggled.connect(lambda on: (setattr(cue, "text_rec", on), self._emit()))
+        row.addWidget(cb)
+        row.addWidget(QLabel(tr("sul file di")))
+        ref = QComboBox()
+        ref.addItem(tr("— nessuna: dall'avvio della cue —"), "")
+        for lst in sh.lists:
+            for c in lst.cues:
+                if c.type in ("audio", "video"):
+                    ref.addItem(f"{lst.name} · {c.number or '·'} – {c.name or TYPE_LABELS.get(c.type, c.type)}", c.id)
+        j = ref.findData(cue.srt_target)
+        if j < 0 and cue.srt_target:
+            ref.addItem("⚠ " + tr("cue agganciata eliminata"), cue.srt_target)
+            j = ref.count() - 1
+        ref.setCurrentIndex(max(0, j))
+        ref.setToolTip(tr("Cue audio/video a cui agganciare i tempi: deve essere già partita quando parte "
+                          "questa cue (per esempio subito prima, con questa «con la precedente»)"))
+        ref.currentIndexChanged.connect(lambda k: (setattr(cue, "srt_target", ref.itemData(k) or ""), self._emit()))
+        row.addWidget(ref, 1)
+        info = QLabel()
+        info.setStyleSheet("color:#999;")
+        row.addWidget(info)
+        btn = QPushButton(tr("Tempi e SRT…"))
+
+        def edit():
+            from ..ui_subs import TimesDialog
+            dlg = TimesDialog(self, cue, sh)
+            if dlg.exec() or dlg.markers_added:
+                self._emit()
+                if dlg.converted:
+                    QTimer.singleShot(0, self.rebuild)
+        btn.clicked.connect(edit)
+        row.addWidget(btn)
+        layout.addLayout(row)
+        return info
 
     # ------------------------------------------------------------------ sottotitoli a tempo (SRT)
     def _srt_panel(self, cue):
@@ -336,7 +389,9 @@ class TextTabMixin:
         b_vid.setToolTip(tr("Importa le tracce di sottotitoli contenute nel file della cue agganciata"))
         b_exp = QPushButton(tr("Esporta .srt…"))
         b_del = QPushButton(tr("Rimuovi"))
-        for b in (b_add, b_vid, b_exp, b_del):
+        b_mk = QPushButton(tr("Marker…"))
+        b_mk.setToolTip(tr("Marker sulla cue agganciata all'inizio dei sottotitoli (lingua in uso)"))
+        for b in (b_add, b_vid, b_exp, b_del, b_mk):
             brow.addWidget(b)
         brow.addStretch(1)
         v.addLayout(brow)
@@ -420,6 +475,7 @@ class TextTabMixin:
             b_vid.setEnabled(tg is not None and tg.type == "video" and bool(tg.file))
             b_exp.setEnabled(bool(tl))
             b_del.setEnabled(bool(tl))
+            b_mk.setEnabled(bool(tl) and tg is not None)
             busy[0] = False
 
         def changed(rebuild_langs=True):
@@ -528,6 +584,25 @@ class TextTabMixin:
                 del tl[r]
                 cue.srt_tracks = tl
                 changed()
+        def markers(which):
+            tg = sh.by_id(cue.srt_target) if cue.srt_target else None
+            tk = srt.pick_track(cue, sh)
+            if tg is None or tk is None:
+                return
+            es = srt.parse(tk.get("srt") or "").entries
+            if which == "one":
+                k = int(getattr(self, "_srt_preview_n", lambda: 1)()) - 1
+                es = es[k:k + 1] if 0 <= k < len(es) else []
+            off = float(cue.srt_offset or 0)
+            n = srt.add_markers(tg, [(e[0] + off, e[2]) for e in es])
+            self._emit()
+            chk.setText(tr("{0} marker aggiunti", n) + "<br><br>" + chk.text())
+
+        from PySide6.QtWidgets import QMenu
+        mk_menu = QMenu(b_mk)
+        mk_menu.addAction(tr("Per tutti i sottotitoli"), lambda: markers("all"))
+        mk_menu.addAction(tr("Per il sottotitolo in anteprima"), lambda: markers("one"))
+        b_mk.setMenu(mk_menu)
         b_add.clicked.connect(add_files)
         b_vid.clicked.connect(from_video)
         b_exp.clicked.connect(export)

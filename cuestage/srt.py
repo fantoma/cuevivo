@@ -308,6 +308,65 @@ def to_srt(parsed):
     return "\n".join(out)
 
 
+def parse_time(s):
+    """«00:01:02,500», «1:02.5», «62.5» -> secondi; None se non è un tempo."""
+    s = (s or "").strip().replace(",", ".")
+    if not s:
+        return None
+    try:
+        parts = [float(x) for x in s.split(":")]
+    except ValueError:
+        return None
+    if len(parts) > 3 or any(x < 0 for x in parts):
+        return None
+    t = 0.0
+    for x in parts:
+        t = t * 60 + x
+    return t
+
+
+def phrases_to_srt(phrases, times, default=3.0):
+    """Frasi di una cue in sequenza con i tempi memorizzati [[inizio, fine], …] -> testo SRT. Le frasi senza
+    inizio e quelle vuote («_») si saltano; una fine mancante è l'inizio della frase seguente (al massimo
+    «default» secondi dopo)."""
+    from .text_render import BLANK
+    items = []
+    for i, ph in enumerate(phrases):
+        tm = times[i] if i < len(times) and isinstance(times[i], (list, tuple)) else None
+        if not tm or tm[0] is None:
+            continue
+        items.append((float(tm[0]), tm[1] if len(tm) > 1 else None, ph))
+    items.sort(key=lambda x: x[0])
+    out = []
+    for k, (a, b, ph) in enumerate(items):
+        nxt = items[k + 1][0] if k + 1 < len(items) else None
+        if b is None or b <= a:
+            b = min(a + default, nxt) if (nxt is not None and nxt > a) else a + default
+        if not ph.strip() or ph.strip() in BLANK:
+            continue
+        out.append((a, float(b), ph.strip("\n")))
+    return "\n".join(f"{i}\n{fmt_time(a)} --> {fmt_time(b)}\n{t}\n" for i, (a, b, t) in enumerate(out, 1))
+
+
+def add_markers(target, items):
+    """Marker sulla cue audio/video per i tempi dei sottotitoli: items = [(secondi del file, testo)].
+    Non si duplicano quelli già presenti allo stesso tempo con lo stesso nome. Restituisce quanti ne aggiunge."""
+    ms = [dict(m) for m in (target.markers or []) if isinstance(m, dict)]
+    n = 0
+    for t, text in items:
+        if t is None or t < 0:
+            continue
+        name = " ".join((text or "").split())
+        name = name if len(name) <= 40 else name[:39] + "…"
+        if any(abs(float(m.get("t", -1)) - t) < 0.01 and m.get("name") == name for m in ms):
+            continue
+        ms.append({"t": round(float(t), 3), "name": name})
+        n += 1
+    ms.sort(key=lambda m: float(m.get("t", 0)))
+    target.markers = ms
+    return n
+
+
 # ------------------------------------------------------------------ cue
 
 def make_track(path):
