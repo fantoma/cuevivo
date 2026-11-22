@@ -47,7 +47,7 @@ def as_qimage(img):
 
 
 class Layer:
-    __slots__ = ("key", "z", "order", "opacity", "image", "fit", "cue")
+    __slots__ = ("key", "z", "order", "opacity", "image", "fit", "cue", "preview_only")
 
     def __init__(self, key, z, order, fit="fit", cue=None):
         self.key = key
@@ -57,6 +57,9 @@ class Layer:
         self.image = None
         self.fit = fit
         self.cue = cue  # i parametri di crop/posizione/scala sono letti dal vivo dalla cue
+        # solo nell'anteprima: non va sullo schermo di uscita di questa istanza, se non è uno slave
+        # (testo «non inviare allo schermo master»: lo mostrano le istanze slave collegate)
+        self.preview_only = False
 
 
 class Compositor:
@@ -92,6 +95,12 @@ class Compositor:
 
     def sorted_layers(self):
         return sorted(self.layers.values(), key=lambda l: (l.z, l.order))
+
+    def output_layers(self):
+        """Layer dello schermo di uscita: senza quelli «solo anteprima» (tranne su uno slave)."""
+        from .outputs import secondary
+        ls = self.sorted_layers()
+        return ls if secondary() else [l for l in ls if not l.preview_only]
 
 
 def fit_rect(iw, ih, W, H, mode):
@@ -233,9 +242,10 @@ def draw_grid(p, W, H):
 
 
 def render(p, comp, W, H, ox=0.0, oy=0.0, sx=1.0, sy=1.0, handles=False, active_corner=-1,
-           layers=None):
+           layers=None, output=False):
     """Disegna l'uscita completa in un'area WxH (offset/scala per l'anteprima).
-    `layers`: lista alternativa di layer (altrimenti quelli attivi nel compositore)."""
+    `layers`: lista alternativa di layer (altrimenti quelli attivi nel compositore);
+    output: è lo schermo di uscita (senza i layer «solo anteprima»)."""
     p.setRenderHint(QPainter.SmoothPixmapTransform, True)
     p.setRenderHint(QPainter.Antialiasing, True)
     cw, ch = W, H  # dimensione del "canvas" logico
@@ -243,7 +253,7 @@ def render(p, comp, W, H, ox=0.0, oy=0.0, sx=1.0, sy=1.0, handles=False, active_
     p.save()
     p.setTransform(t, True)
     if layers is None:
-        layers = comp.sorted_layers()
+        layers = comp.output_layers() if output else comp.sorted_layers()
     for lay in layers:
         img = lay.image
         if img is None or img.isNull() or lay.opacity <= 0.001:
@@ -293,7 +303,7 @@ class _OutputMixin:
         t0 = _t.perf_counter()
         p.fillRect(self.rect(), Qt.black)
         render(p, self.comp, self.width(), self.height(), handles=self.edit_mode,
-               active_corner=self.drag)
+               active_corner=self.drag, output=True)
         # diagnostica: tempo di disegno e fotogrammi al secondo dell'uscita
         dt = _t.perf_counter() - t0
         st = self.__dict__.setdefault("_diag", {"avg": 0.0, "max": 0.0, "n": 0, "total": 0, "t0": _t.monotonic(),

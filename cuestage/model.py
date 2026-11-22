@@ -225,6 +225,9 @@ class Cue:
         # in secondi del file della cue agganciata srt_target se suona, altrimenti dall'avvio della cue;
         # text_times_ref = id della cue di riferimento dei tempi memorizzati («» = avvio della cue)
         "text_rec": False, "text_times": [], "text_times_ref": "",
+        # «non inviare allo schermo master»: sullo schermo di questa istanza il testo non va (si vede solo
+        # nell'anteprima) a meno che sia uno slave collegato non di ridondanza, che lo mostra
+        "text_no_master": False,
         # cue PDF: pagine mostrate (indici da 0, nell'ordine; vuoto = tutte) e dissolvenza tra le pagine (s)
         "pdf_pages": [], "pdf_fade": 0.3,
         # cue PDF: dopo l'ultima pagina il GO che passa alla cue successiva la ferma (con il suo fade out)

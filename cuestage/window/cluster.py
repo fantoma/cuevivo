@@ -449,7 +449,31 @@ class ClusterMixin:
                 "run": {cid: round(float(inst.elapsed), 2) for cid, inst in insts},
                 "paused": sorted(cid for cid, inst in insts if inst.paused),
                 "paused_all": bool(ctrl.paused_all),
-                "view": sh.current.id}
+                "view": sh.current.id,
+                "texts": self._mirror_texts_info()}
+
+    def _mirror_texts_info(self):
+        """(master) Testi «non inviare allo schermo master» in corso, per gli slave normali che li mostrano:
+        {cue: {"i": frase}} in sequenza, {cue: {"i": sottotitolo, "p": posizione del file, "go": suona}} SRT."""
+        from ..engine import TextInstance
+        out = {}
+        for cid, inst in list(self.ctrl.instances.items()):
+            c = inst.cue
+            if not isinstance(inst, TextInstance) or inst.done or getattr(inst, "_closing", False) \
+                    or not c.text_no_master or c.text_mode not in ("sequence", "srt"):
+                continue
+            if c.text_mode == "srt":
+                tg = inst._srt_target()
+                if tg is None:
+                    continue
+                try:
+                    pos = float(tg.position())
+                except Exception:
+                    continue
+                out[cid] = {"i": int(inst.idx), "p": round(pos, 3), "go": not (tg.paused or self.ctrl.paused_all)}
+            else:
+                out[cid] = {"i": int(inst.idx)}
+        return out
 
     def _cluster_state(self, st):
         """(secondaria) Stato del master: il playhead segue quello del master; in SLAVE le cue attive sul
@@ -475,9 +499,38 @@ class ClusterMixin:
         if not red:
             ctrl.remote_running = run
             self.model.refresh_state()
+            self._mirror_texts(st.get("texts") or {})
             return
         ctrl.remote_running = {}
         self._redundancy_align(st, run)
+
+    def _mirror_texts(self, texts):
+        """(slave normale) I testi «non inviare allo schermo master» in corso sul master si mostrano qui,
+        alla stessa frase (sequenza) o seguendo la posizione del file del master (SRT)."""
+        from ..engine import TextInstance
+        ctrl, sh = self.ctrl, self.show_data
+        for cid, info in texts.items():
+            c = sh.by_id(cid)
+            if c is None or c.type != "text" or not c.text_no_master or c.text_mode not in ("sequence", "srt"):
+                continue
+            inst = ctrl.instances.get(cid)
+            if inst is None or inst.done or getattr(inst, "_closing", False):
+                ctrl._mirroring = True              # niente tempi memorizzati qui
+                try:
+                    inst = ctrl.start_cue(c, cascade=False)
+                finally:
+                    ctrl._mirroring = False
+                if inst is None:
+                    continue
+                inst._mirror = True
+            if c.text_mode == "srt":
+                inst._remote = (float(info.get("p") or 0), ctrl.clock, bool(info.get("go")))
+            elif int(info.get("i", 0)) != inst.idx:
+                inst.goto(int(info.get("i", 0)))
+        for inst in list(ctrl.instances.values()):
+            if isinstance(inst, TextInstance) and getattr(inst, "_mirror", False) and not inst.done \
+                    and inst.cue.id not in texts and not getattr(inst, "_closing", False):
+                inst.stop(float(inst.cue.text_fade or 0))
 
     SEEK_TOL = 0.3          # scarto (s) oltre il quale la ridondanza si riallinea al punto del master
     SEEK_TYPES = ("audio", "video", "image", "pdf", "wait", "text")
@@ -620,6 +673,13 @@ class ClusterMixin:
         # ridondanza collegata e master vivo: i comandi ai dispositivi esterni li manda solo il master
         held = hub.role == "slave" and hub.mode == "redundancy" and not hub.lost
         hold(held)
+        # slave (non di ridondanza: quella rifà lo schermo del master) -> mostra i testi «non inviare allo
+        # schermo master»
+        from ..outputs import secondary, set_secondary
+        sec = hub.role == "slave" and hub.mode != "redundancy"
+        if secondary() != sec:
+            set_secondary(sec)
+            self.comp.changed()             # testi «non inviare allo schermo master»: ora sì / ora no
         if hasattr(self, "held_label"):
             self.held_label.setVisible(held)
         if hasattr(self, "act_leave"):        # anche durante il primo download: si può sempre uscire

@@ -333,6 +333,12 @@ The text is drawn on the video output, above (or below, with the **layer**) the 
   **Maximum lines**: 0 = no limit.
 - Preview in the inspector and “Show on the output from this line”; style changes also apply immediately to the
   text on the output.
+- **Do not send to the master screen** (sequence and timed subtitles): the text is not drawn on this instance's
+  output screen, only in the **preview window**. A redundancy slave behaves exactly like the master (it does not
+  show it either); a connected **non-redundancy slave** shows it on its own screen — e.g. a slave that only
+  drives the surtitle projector: while the cue runs on the master, the slave shows the same line (following the
+  master's GO) or, for timed subtitles, follows the position of the master's audio/video file (pause and jumps
+  included), without playing the media itself.
 
 ## “MIDI out” cue
 

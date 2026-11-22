@@ -2101,6 +2101,7 @@ class TextInstance(Instance):
             self._srt_text = None        # testo in uscita
             self._srt_pos = None         # posizione del file agganciato
             self._srt_lang = ""
+            self._remote = None          # slave normale: (posizione del file sul master, orologio, suona)
             self._srt_tick()
             return
         self.phrases = split_phrases(c.text_content) if c.text_mode == "sequence" else [c.text_content or ""]
@@ -2114,7 +2115,7 @@ class TextInstance(Instance):
         """Con «Memorizza i tempi» ogni frase registra quando compare e quando sparisce, in secondi del file
         della cue agganciata (se suona) o dall'avvio della cue. Cambiando riferimento i tempi vecchi si tolgono."""
         c = self.cue
-        self._rec = c.text_mode == "sequence" and bool(c.text_rec)
+        self._rec = c.text_mode == "sequence" and bool(c.text_rec) and not getattr(self.ctrl, "_mirroring", False)
         self._rec_cur = None
         self._rec_last = None
         if not self._rec:
@@ -2177,15 +2178,19 @@ class TextInstance(Instance):
 
     def _srt_tick(self):
         tg = self._srt_target()
-        if tg is None:
+        rem = getattr(self, "_remote", None)
+        if tg is None and rem is not None:           # testo mostrato per il master (slave normale)
+            pos = rem[0] + ((self.ctrl.clock - rem[1]) if rem[2] else 0.0)
+        elif tg is None:
             if self._srt_seen:                       # la cue agganciata è finita (o è stata fermata)
                 self.stop(float(self.cue.text_fade or 0))
             return
+        else:
+            try:
+                pos = float(tg.position())
+            except Exception:
+                return
         self._srt_seen = True
-        try:
-            pos = float(tg.position())
-        except Exception:
-            return
         p = self._srt_parsed()
         self._srt_pos = pos
         t = pos - float(self.cue.srt_offset or 0)
@@ -2219,6 +2224,7 @@ class TextInstance(Instance):
         self.n += 1
         key = f"{self.key}#t{self.n}"
         lay = ctrl.comp.add(key, int(self.cue.layer), "stretch", cue=None)
+        lay.preview_only = bool(self.cue.text_no_master)
         lay.image = self._image(text)
         env = Envelope(0.0 if fade > 0 else 1.0)
         if fade > 0:
@@ -2229,7 +2235,8 @@ class TextInstance(Instance):
 
     @property
     def captures_go(self):
-        return self.cue.text_mode == "sequence" and not self.done and self.idx < len(self.phrases) - 1
+        return self.cue.text_mode == "sequence" and not self.done and self.idx < len(self.phrases) - 1 \
+            and not getattr(self, "_mirror", False)          # testo mostrato per il master: lo comanda lui
 
     def next(self):
         if self.cue.text_mode != "srt" and self.idx < len(self.phrases) - 1:
@@ -2248,6 +2255,8 @@ class TextInstance(Instance):
         from .text_render import split_phrases
         c = self.cue
         if c.text_mode == "srt":
+            for lay, _k, _e in self.layers:
+                lay.preview_only = bool(c.text_no_master)
             if self.layers:
                 self.layers[-1][0].image = self._image(self._srt_text or "")
                 self.layers[-1][0].z = int(c.layer)
@@ -2255,6 +2264,8 @@ class TextInstance(Instance):
             return
         self.phrases = (split_phrases(c.text_content) if c.text_mode == "sequence" else [c.text_content or ""]) or [""]
         self.idx = min(self.idx, len(self.phrases) - 1)
+        for lay, _k, _e in self.layers:
+            lay.preview_only = bool(c.text_no_master)
         if self.layers:
             lay = self.layers[-1][0]
             lay.image = self._image(self.phrases[self.idx])

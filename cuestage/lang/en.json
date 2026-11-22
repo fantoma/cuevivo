@@ -698,6 +698,8 @@
   "Corsivo": "Italic",
   "Colore": "Colour",
   "finché non si ferma": "until stopped",
+  "Non inviare allo schermo master": "Do not send to the master screen",
+  "Il testo non compare sullo schermo di uscita di questa istanza (né di uno slave di ridondanza, che fa come il master) ma solo nella finestra di anteprima; uno slave collegato non di ridondanza lo mostra sul suo schermo": "The text does not appear on this instance's output screen (nor on a redundancy slave, which behaves like the master) but only in the preview window; a connected non-redundancy slave shows it on its screen",
   "Importa testo": "Import text",
   "Testo (*.txt *.srt);;Tutti (*)": "Text (*.txt *.srt);;All (*)",
   "sul file di": "on the file of",

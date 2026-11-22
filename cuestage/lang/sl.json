@@ -698,6 +698,8 @@
   "Corsivo": "Ležeče",
   "Colore": "Barva",
   "finché non si ferma": "do ustavitve",
+  "Non inviare allo schermo master": "Ne pošlji na glavni zaslon",
+  "Il testo non compare sullo schermo di uscita di questa istanza (né di uno slave di ridondanza, che fa come il master) ma solo nella finestra di anteprima; uno slave collegato non di ridondanza lo mostra sul suo schermo": "Besedilo se ne prikaže na izhodnem zaslonu tega primerka (niti na redundančnem podrejenem, ki se vede kot glavni), ampak le v oknu predogleda; povezan podrejeni primerek, ki ni redundančen, ga prikaže na svojem zaslonu",
   "Importa testo": "Uvozi besedilo",
   "Testo (*.txt *.srt);;Tutti (*)": "Besedilo (*.txt *.srt);;Vse (*)",
   "sul file di": "na datoteki",

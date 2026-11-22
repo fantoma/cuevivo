@@ -698,6 +698,8 @@
   "Corsivo": "Corsivo",
   "Colore": "Colore",
   "finché non si ferma": "finché non si ferma",
+  "Non inviare allo schermo master": "Non inviare allo schermo master",
+  "Il testo non compare sullo schermo di uscita di questa istanza (né di uno slave di ridondanza, che fa come il master) ma solo nella finestra di anteprima; uno slave collegato non di ridondanza lo mostra sul suo schermo": "Il testo non compare sullo schermo di uscita di questa istanza (né di uno slave di ridondanza, che fa come il master) ma solo nella finestra di anteprima; uno slave collegato non di ridondanza lo mostra sul suo schermo",
   "Importa testo": "Importa testo",
   "Testo (*.txt *.srt);;Tutti (*)": "Testo (*.txt *.srt);;Tutti (*)",
   "sul file di": "sul file di",

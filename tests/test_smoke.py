@@ -4667,6 +4667,70 @@ def t_text_rec(w):
     assert srt.parse_time("00:01:02,500") == 62.5 and srt.parse_time("1:02.5") == 62.5 and srt.parse_time("x") is None
 
 
+def t_text_no_master(w):
+    """Testo «non inviare allo schermo master»: solo nell'anteprima sul master e su uno slave di ridondanza,
+    sullo schermo di uno slave normale."""
+    from PySide6.QtGui import QImage, QPainter
+    from cuestage.outputs import secondary
+    from cuestage.video_output import render
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    t = Cue("text", number="1", name="Sopratitoli", text_content="Uno\n\nDue", text_no_master=True,
+            text_bg="#ffffff", text_bg_opacity=100.0)
+    sh.cues[:] = [t]
+    w._set_show(sh)
+    run(0.2)
+    w.ctrl.start_cue(t)
+    run(0.2)
+
+    def lit(output):
+        img = QImage(192, 108, QImage.Format_ARGB32)
+        img.fill(0)
+        p = QPainter(img)
+        render(p, w.comp, 192, 108, output=output)
+        p.end()
+        return sum(1 for x in range(0, 192, 4) for y in range(0, 108, 4) if img.pixelColor(x, y).value() > 128)
+    hub = w.cluster
+    old = hub.role, hub.mode
+    try:
+        assert lit(False) > 0 and lit(True) == 0, (lit(False), lit(True))     # anteprima sì, uscita no
+        hub.role, hub.mode = "slave", "redundancy"
+        w._cluster_indicator()
+        assert not secondary() and lit(True) == 0                             # ridondanza: come il master
+        hub.role, hub.mode = "slave", "slave"
+        w._cluster_indicator()
+        assert secondary() and lit(True) > 0                                  # slave normale: sullo schermo
+        hub.role, hub.mode = old
+        w._cluster_indicator()
+        assert not secondary()
+        assert w._mirror_texts_info() == {t.id: {"i": 0}}                     # il master lo passa agli slave
+        t.text_no_master = False                                              # cambiato dal vivo
+        w.ctrl.instances[t.id].refresh()
+        assert lit(True) > 0
+        assert w._mirror_texts_info() == {}
+        t.text_no_master = True
+        w.ctrl.stop_all(0)
+        run(0.2)
+        # slave normale: mostra le frasi (e i sottotitoli SRT) in corso sul master, senza il video
+        s = Cue("text", number="2", name="SRT", text_mode="srt", srt_target="nessun-video", text_no_master=True,
+                srt_tracks=[{"lang": "it", "srt": "1\n00:00:01,000 --> 00:00:03,000\nPrimo\n"}])
+        sh.cues.append(s)
+        hub.role, hub.mode, hub.lost = "slave", "slave", False
+        w._cluster_indicator()
+        w._cluster_state({"ph": {}, "run": {}, "texts": {t.id: {"i": 1}, s.id: {"i": 1, "p": 1.5, "go": True}}})
+        run(0.2)
+        ti, si = w.ctrl.instances.get(t.id), w.ctrl.instances.get(s.id)
+        assert ti is not None and ti.idx == 1 and not ti.captures_go and lit(True) > 0
+        assert si is not None and si._srt_text == "Primo", getattr(si, "_srt_text", None)
+        w._cluster_state({"ph": {}, "run": {}, "texts": {}})                  # finiti sul master
+        assert wait_until(lambda: ti.done and si.done, 3)
+    finally:
+        hub.role, hub.mode = old
+        w._cluster_indicator()
+        w.ctrl.stop_all(0)
+        run(0.2)
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -5627,6 +5691,7 @@ if __name__ == "__main__":
     check("cue, gruppi e PANEL disabilitati: non partono, il GO li salta, grigi e barrati", lambda: t_disable(w))
     check("Cue Testo SRT: sottotitoli del video, più lingue, tempi agganciati, controllo dei tempi", lambda: t_text_srt(w))
     check("Cue Testo in sequenza: tempi memorizzati sul video agganciato, Tempi e SRT, trasformazione", lambda: t_text_rec(w))
+    check("Cue Testo «non inviare allo schermo master»: anteprima sì, uscita no, slave normale sì", lambda: t_text_no_master(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

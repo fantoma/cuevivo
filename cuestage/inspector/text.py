@@ -151,6 +151,14 @@ class TextTabMixin:
             dur.setSpecialValueText(tr("finché non si ferma"))
             f.addRow(tr("Durata"), dur)
         f.addRow(tr("Layer"), self._ispin("layer", 0, 99))
+        if cue.text_mode in ("sequence", "srt"):
+            nm = QCheckBox(tr("Non inviare allo schermo master"))
+            nm.setChecked(bool(cue.text_no_master))
+            nm.setToolTip(tr("Il testo non compare sullo schermo di uscita di questa istanza (né di uno slave di "
+                             "ridondanza, che fa come il master) ma solo nella finestra di anteprima; uno slave "
+                             "collegato non di ridondanza lo mostra sul suo schermo"))
+            nm.toggled.connect(lambda on: (setattr(cue, "text_no_master", on), self._emit()))
+            f.addRow("", nm)
         right.addLayout(f)
         # --- anteprima
         prow = QHBoxLayout()

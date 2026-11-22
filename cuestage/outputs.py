@@ -19,6 +19,20 @@ def held():
     return _held
 
 
+_secondary = False
+
+
+def set_secondary(on):
+    """Questa istanza è collegata come slave (non di ridondanza) a un master: mostra sul suo schermo anche i
+    layer «solo anteprima» (testi «non inviare allo schermo master»)."""
+    global _secondary
+    _secondary = bool(on)
+
+
+def secondary():
+    return _secondary
+
+
 def done_future(result=None):
     """Future già concluso: per chi aspetta il risultato di un comando che non è partito."""
     f = Future()

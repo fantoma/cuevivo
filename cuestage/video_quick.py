@@ -211,7 +211,7 @@ if QQuickWidget is not None:
             comp = self.comp
             W, H = max(1, self.width()), max(1, self.height())
             seen = set()
-            for lay in comp.sorted_layers():
+            for lay in comp.output_layers():
                 img = lay.image
                 if img is None or img.isNull():
                     continue
