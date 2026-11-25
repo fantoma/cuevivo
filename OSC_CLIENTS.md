@@ -35,6 +35,50 @@ the same messages under `/cuevivo` (e.g. `/cuevivo/client/hello`) and answers a 
 - The program moves its Cuevivo destinations to the new address, answers `moved`, and from then on sends its
   `hello` messages to the new master, which in turn passes them on to its own secondaries.
 
+## Active cues (show them in the program)
+
+A program that has introduced itself with `hello` can show Cuevivo's **active cues** in its own interface, like
+the *Active cues* panel: Cuevivo pushes the state, the program draws it and can stop or pause single cues.
+
+| Direction | Address | Arguments |
+|---|---|---|
+| program → Cuevivo | `/cuestage/client/active/subscribe` | `client id` (s), `rate` (f, updates per second while cues run, default 4, 0.5…20), `options` (s, optional, comma-separated: `nogroups`, `media`) |
+| program → Cuevivo | `/cuestage/client/active/unsubscribe` | `client id` (s) |
+| Cuevivo → program | `/cuestage/active` | `state` (s, JSON, see below) |
+| program → Cuevivo | `/cuestage/client/active/stop` | `cue id` (s), `fade` (f, optional, default: the show's stop fade) |
+| program → Cuevivo | `/cuestage/client/active/pause` | `cue id` (s) — pause / resume (toggle) |
+
+- `subscribe` must come after a `hello` (Cuevivo needs the return port); it can be repeated to change rate or
+  options. The subscription lives as long as the program keeps sending its `hello` (30 s without = forgotten),
+  so a program should simply send `subscribe` again after every reconnection or master change.
+- Cuevivo answers immediately, then sends `/cuestage/active` **at once when something changes** (a cue starts,
+  stops, pauses, fades out, the standby moves), **at the requested rate while cues are active** (the times move)
+  and every 2 s when nothing is active.
+- Options: `nogroups` leaves out group cues (their cues stay), `media` keeps only audio, video, image, PDF and
+  text cues.
+- Stop and pause go through the normal commands, so on a redundancy master they are replicated as usual.
+
+State (one JSON object per message, at most ~60 KB: if the list does not fit, the last cues are left out and
+`more` says how many):
+
+```json
+{"v": 1, "instance": "Regia", "paused_all": false,
+ "standby": {"id": "…", "number": "12", "name": "12 Rain", "list": "MAIN"},
+ "cues": [
+  {"id": "…", "number": "10", "name": "10 Storm", "type": "audio", "list": "MAIN", "color": "#3464aa",
+   "group": false, "in_group": true, "state": "run", "elapsed": 12.4, "total": 95.0, "remaining": 82.6,
+   "progress": 0.131, "status": "", "fading": false},
+  {"id": "…", "number": "11", "name": "11 Bell", "type": "audio", "list": "Effects", "color": "#a05a2c",
+   "group": false, "in_group": false, "state": "wait", "wait": 3.2, "elapsed": 0.0, "total": null,
+   "remaining": null, "progress": null, "status": ""}]}
+```
+
+- `state`: `wait` (in pre-wait, `wait` = seconds left), `run`, `paused`. `total`/`remaining`/`progress` are
+  `null` for cues without an end (infinite loops, images until stopped…). `status` is the cue's own text
+  (e.g. “line 3/12” for a text sequence, “SRT en · 14/320”). `fading` = the cue is fading out to stop.
+- `name` is the cue label as shown in Cuevivo (number and name); `color` is the colour of its list.
+- `v` is the protocol version: fields may be added in the future, a program must ignore the unknown ones.
+
 ## Safety
 
 Anyone on the network can send OSC. A program should apply `/cuestage/master` on its own only when it comes
@@ -42,6 +86,9 @@ from a known instance: the old master, or one of the `group members` listed in t
 case it should ask the operator. Script Follower ignores the message if it concerns none of its profiles.
 
 ## Script Follower
+
+To show the active cues, Script Follower subscribes after each `hello` (see *Active cues* above) and draws
+the list with progress bars and ■ / ❚❚ buttons that send `stop` / `pause`.
 
 Settings › OSC › **Cuevivo: master change**. You can switch the feature on or off, choose the return port
 (default 53100, or the next free port if that one is busy), and see whether each Cuevivo profile is connected.

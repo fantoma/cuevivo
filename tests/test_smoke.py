@@ -4968,6 +4968,67 @@ def t_snapshots(w):
     w.show_data.dirty = False
 
 
+def t_active_feed(w):
+    """Cue attive per i programmi OSC (Script Follower): abbonamento dopo l'hello, stato in JSON a ogni
+    cambiamento e mentre le cue vanno, filtri, stop e pausa dal programma, l'hello non perde l'abbonamento."""
+    import json as _json
+    import threading
+    from pythonosc.dispatcher import Dispatcher
+    from pythonosc.osc_server import ThreadingOSCUDPServer
+    got = []
+    disp = Dispatcher()
+    disp.map("/cuestage/active", lambda addr, *a: got.append(_json.loads(a[0])))
+    srv = ThreadingOSCUDPServer(("127.0.0.1", 0), disp)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    port = srv.server_address[1]
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    a = tone("feed.wav", 6)
+    g = Cue("group", number="1", name="Gruppo", group_mode="all")
+    c1 = Cue("audio", number="2", name="Pioggia", file=a, group=g.id)
+    o = Cue("wait", number="3", name="Attesa", duration=20.0)
+    sh.cues[:] = [g, c1, o]
+    w._set_show(sh)
+    run(0.2)
+    hello = ["Script Follower", "1.0", "regia", port, "sf-test"]
+    try:
+        w._osc_client("127.0.0.1", "/cuestage/client/hello", hello)
+        w._osc_client("127.0.0.1", "/cuestage/client/active/subscribe", ["sf-test", 10.0])
+        assert wait_until(lambda: got, 3) and got[-1]["cues"] == [] and got[-1]["v"] == 1
+        assert got[-1]["standby"]["number"] == "1"
+        w.ctrl.start_cue(g)
+        w.ctrl.start_cue(o)
+        assert wait_until(lambda: {g.id, c1.id, o.id} <= {x["id"] for x in got[-1]["cues"]}, 3), got[-1]
+        snap = {x["id"]: x for x in got[-1]["cues"]}
+        p = snap[c1.id]
+        assert p["state"] == "run" and p["type"] == "audio" and p["list"] == sh.main.name and p["color"].startswith("#")
+        assert p["total"] and abs(p["total"] - 6.0) < 0.2 and p["in_group"] and snap[g.id]["group"]
+        n0, e0 = len(got), p["elapsed"]
+        run(0.6)                                           # mentre suona: ~10 al secondo, tempo che avanza
+        assert len(got) - n0 >= 3 and {x["id"]: x for x in got[-1]["cues"]}[c1.id]["elapsed"] > e0
+        w._osc_client("127.0.0.1", "/cuestage/client/hello", hello)       # l'hello periodico non lo cancella
+        w._osc_client("127.0.0.1", "/cuestage/client/active/subscribe", ["sf-test", 10.0, "nogroups,media"])
+        assert wait_until(lambda: [x["id"] for x in got[-1]["cues"]] == [c1.id], 3), got[-1]["cues"]
+        w._osc_client("127.0.0.1", "/cuestage/client/active/pause", [c1.id])
+        assert wait_until(lambda: got[-1]["cues"] and got[-1]["cues"][0]["state"] == "paused", 3)
+        w._osc_client("127.0.0.1", "/cuestage/client/active/stop", [c1.id, 0.0])
+        assert wait_until(lambda: got[-1]["cues"] == [], 3), got[-1]
+        w._osc_client("127.0.0.1", "/cuestage/client/active/unsubscribe", ["sf-test"])
+        run(0.2)
+        n1 = len(got)
+        run(2.5)
+        assert len(got) == n1                              # disdetto: più niente
+        from cuestage.active_feed import MAX_BYTES, encode
+        big = {"v": 1, "cues": [{"id": str(i), "name": "x" * 200} for i in range(1000)]}
+        out = _json.loads(encode(big))
+        assert len(encode(big).encode()) <= MAX_BYTES and out["more"] == 1000 - len(out["cues"]) > 0
+    finally:
+        w._osc_client("127.0.0.1", "/cuestage/client/bye", ["sf-test"])
+        srv.shutdown()
+        w.ctrl.stop_all(0)
+        run(0.2)
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -5935,6 +5996,7 @@ if __name__ == "__main__":
     check("Trova e modifica: ricerca, volume, fade, abilita/disabilita, annulla", lambda: t_find_edit(w))
     check("Cue sheet: CSV e PDF", lambda: t_cue_sheet(w))
     check("Copie precedenti dello show: salvataggi, limite, ripresa", lambda: t_snapshots(w))
+    check("Cue attive per i programmi OSC (Script Follower): abbonamento, stato, filtri, stop e pausa", lambda: t_active_feed(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

@@ -1184,6 +1184,8 @@ class ClusterHub(QObject):
              "name": str(args[2]) if len(args) > 2 else sender, "host": sender, "port": port,
              "profiles": sorted(set((old or {}).get("profiles") or []) | ({str(args[5])} if len(args) > 5 else set())),
              "last": time.monotonic()}
+        if old is not None and old.get("active") and old.get("host") == sender:
+            c["active"] = old["active"]          # abbonamento alle cue attive: resta finché il programma è vivo
         self.osc_clients[cid] = c
         return c, old is None or old.get("host") != sender
 
@@ -1195,7 +1197,7 @@ class ClusterHub(QObject):
         now = time.monotonic()
         for k in [k for k, c in self.osc_clients.items() if now - c["last"] > OSC_CLIENT_TTL]:
             del self.osc_clients[k]
-        return [{k: v for k, v in c.items() if k != "last"} for c in self.osc_clients.values()]
+        return [{k: v for k, v in c.items() if k not in ("last", "active")} for c in self.osc_clients.values()]
 
     def osc_members(self):
         """IP delle istanze del gruppo (le secondarie collegate): un programma OSC accetta il cambio di master

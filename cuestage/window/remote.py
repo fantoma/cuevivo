@@ -37,10 +37,88 @@ class RemoteMixin:
             c = hub.osc_bye(args[0])
             if c is not None:
                 self.status(tr("Scollegato: {0} su «{1}»", c["app"] or "?", c["name"]))
+        elif a.startswith("/cuestage/client/active/"):
+            self._active_feed_command(a.rsplit("/", 1)[1], sender, args)
         elif a == "/cuestage/client/moved" and args:
             c = hub.osc_clients.get(str(args[0]))
             if c is not None:
                 self.status(tr("{0} su «{1}» ora manda i comandi a questa istanza", c["app"] or "?", c["name"]))
+
+    # ------------------------------------------------------------------ cue attive per i programmi OSC
+    def _active_feed_command(self, cmd, sender, args):
+        """/cuestage/client/active/subscribe id [frequenza] [opzioni] · unsubscribe id · stop id_cue [fade] ·
+        pause id_cue (vedi OSC_CLIENTS.md)."""
+        hub = self.cluster
+        if cmd in ("subscribe", "unsubscribe"):
+            c = hub.osc_clients.get(str(args[0])) if args else None
+            if c is None:
+                c = next((x for x in hub.osc_clients.values() if x.get("host") == sender), None)
+            if c is None:
+                self.status(tr("Cue attive via OSC: {0} non si è presentato (manca /cuestage/client/hello)", sender))
+                return
+            if cmd == "unsubscribe":
+                c.pop("active", None)
+                return
+            try:
+                rate = float(args[1]) if len(args) > 1 else 4.0
+            except (TypeError, ValueError):
+                rate = 4.0
+            from ..active_feed import parse_options
+            c["active"] = {"rate": max(0.5, min(20.0, rate)), "opts": parse_options(args[2] if len(args) > 2 else ""),
+                           "sent": 0.0, "key": None}
+            self._active_feed_start()
+            self._active_feed_tick(force=c)
+            self.status(tr("{0} su «{1}» mostra le cue attive", c["app"] or "?", c["name"]))
+        elif cmd == "stop" and args:
+            cid = str(args[0])
+            if cid in self.ctrl.instances or any(p[1].id == cid for p in self.ctrl.pending):
+                fade = float(args[1]) if len(args) > 1 else float(self.show_data.settings.get("stop_fade", 0.3))
+                self.ctrl.stop_cue(cid, fade)
+        elif cmd == "pause" and args:
+            if str(args[0]) in self.ctrl.instances:
+                self._toggle_pause_cue(str(args[0]))
+
+    def _active_feed_start(self):
+        if getattr(self, "_active_feed_timer", None) is None:
+            from PySide6.QtCore import QTimer
+            t = self._active_feed_timer = QTimer(self)
+            t.timeout.connect(self._active_feed_tick)
+            t.start(50)
+
+    def _active_feed_tick(self, force=None):
+        """Manda le cue attive agli abbonati: subito se qualcosa cambia, alla loro frequenza mentre le cue vanno,
+        ogni tanto anche quando non c'è nulla."""
+        import time as _t
+        from ..active_feed import IDLE_RESEND, encode, snapshot, structure_key
+        from ..appinfo import OSC_NS
+        from ..remote import osc_send_args
+        hub = self.cluster
+        subs = [c for c in hub.osc_clients.values() if c.get("active")]
+        now = _t.monotonic()
+        subs = [c for c in subs if now - c.get("last", now) <= 30.0]       # programma sparito: niente invii
+        if not subs:
+            t = getattr(self, "_active_feed_timer", None)
+            if t is not None and not any(c.get("active") for c in hub.osc_clients.values()):
+                t.stop()
+                self._active_feed_timer = None
+            return
+        cache = {}
+        for c in subs:
+            a = c["active"]
+            okey = tuple(sorted(a["opts"]))
+            data = cache.get(okey)
+            if data is None:
+                data = cache[okey] = snapshot(self.ctrl, self.show_data, hub.name, a["opts"])
+            json_key = structure_key(data)
+            changed = json_key != a.get("key")
+            period = 1.0 / a["rate"] if data["cues"] else IDLE_RESEND
+            if c is not force and not changed and now - a.get("sent", 0.0) < period:
+                continue
+            try:
+                osc_send_args(c["host"], c["port"], c.get("ns", OSC_NS) + "/active", [encode(data)])
+            except Exception:  # noqa: BLE001
+                continue
+            a["sent"], a["key"] = now, json_key
 
     def _osc_message(self, addr, args):
         a = addr.rstrip("/").lower()

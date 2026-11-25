@@ -519,6 +519,10 @@ audio, video, images, PDF and texts**. **⧉** detaches the panel into a **separ
 monitor); closing that window, or the “dock” link left in its place, puts it back. Size, filters, window position
 and detached state are remembered on this computer.
 
+Programs connected via OSC — such as **Script Follower** — can show the active cues in their own interface and
+stop or pause them: they subscribe with `/cuestage/client/active/subscribe` and receive the state as JSON
+(protocol in [OSC_CLIENTS.md](OSC_CLIENTS.md)).
+
 ## Waveform editor
 
 Audio and video cues have the same editor in the “Times and loop” tab (its height is about 60% of the old one):
