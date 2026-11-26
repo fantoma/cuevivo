@@ -60,8 +60,9 @@ def tame_combo(cb, chars=COMBO_CHARS):
     cb.setProperty("_tamed", True)
     cb.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
     cb.setMinimumContentsLength(chars)
-    if cb.minimumWidth() <= 0:
-        cb.setMinimumWidth(80)          # il minimo già calcolato da Qt (largo quanto la voce più lunga) non vale più
+    # Qt tiene in memoria la misura minima già calcolata (larga quanto la voce più lunga) e il layout la usa:
+    # si fissa la larghezza a quella dei caratteri scelti
+    cb.setFixedWidth(cb.sizeHint().width())
     v = cb.view()
     fm = cb.fontMetrics()
     widest = max((fm.horizontalAdvance(cb.itemText(i)) for i in range(cb.count())), default=0) + 40
@@ -75,9 +76,18 @@ def tame_combo(cb, chars=COMBO_CHARS):
 
 
 def tame_combos(widget, limit=360):
-    """Tutti i menu a tendina del widget che vorrebbero essere più larghi di «limit» px."""
+    """Menu a tendina del widget larghi quanto il loro testo (non si allungano a riempire la riga); quelli con
+    voci più lunghe di «limit» px restano stretti, con la voce scelta troncata."""
     for cb in widget.findChildren(QComboBox):
         fm = cb.fontMetrics()
         widest = max((fm.horizontalAdvance(cb.itemText(i)) for i in range(cb.count())), default=0)
         if widest > limit - 40:          # misura sulle voci: la sizeHint prima della prima comparsa non è affidabile
             tame_combo(cb)
+        elif not cb.property("_tamed"):
+            cb.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        if not cb.property("_fit"):
+            cb.setProperty("_fit", True)
+            sp = cb.sizePolicy()
+            sp.setHorizontalPolicy(QSizePolicy.Fixed)      # larghezza = testo contenuto, non tutta la riga
+            cb.setSizePolicy(sp)
+        cb.updateGeometry()                 # il layout ricalcola con le nuove misure (le tiene in memoria)

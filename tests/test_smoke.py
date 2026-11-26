@@ -5075,6 +5075,16 @@ def t_long_names(w):
                 page = page.widget() if hasattr(page, "widget") and page.widget() is not None else page
                 assert page.minimumSizeHint().width() < 900, (r, ins._tab_keys[i], page.minimumSizeHint().width())
             assert w.minimumSizeHint().width() <= 1366 and w.width() <= 1366, (w.minimumSizeHint(), w.width())
+        # menu dell'ispettore larghi quanto il loro testo, non quanto la riga
+        from PySide6.QtWidgets import QComboBox
+        w._select_row(1)
+        run(0.2)
+        ins = w.inspector
+        ins.tabs.setCurrentIndex(ins._tab_keys.index("Fade"))
+        run(0.2)
+        cbs = [c for c in ins.tabs.currentWidget().findChildren(QComboBox) if c.isVisible()]
+        assert cbs and all(c.width() <= c.sizeHint().width() + 2 for c in cbs), [(c.width(), c.sizeHint().width()) for c in cbs]
+        assert all(c.width() < 500 for c in cbs)
         bar = w.findChildren(_BarScroll)[0]
         assert bar.horizontalScrollBar().maximum() == 0, bar.horizontalScrollBar().maximum()
         shown = QLabel.text(w.standby)
