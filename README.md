@@ -703,7 +703,9 @@ slows the start) the version published at `https://www.fantoma.it/cuevivo/versio
 `1.0.32`, or JSON `{"version": "1.0.32"}`). If it is newer than the running one, a red **“See the new version”**
 appears next to the **Help** menu and opens `https://www.fantoma.it/cuevivo` (with the system menu bar of macOS
 it is an extra menu after Help). Without network nothing happens; `CUEVIVO_NO_UPDATE_CHECK=1` disables the
-check.
+check. For the usage statistics the request also carries the installed version, the operating system with its
+version, the processor architecture and an anonymous installation code (random, created once in the program's
+data folder as `.install-id`): no personal data.
 
 **Shows from a newer version.** The show file records the Cuevivo version that saved it. Opening a show saved
 by a newer Cuevivo (or containing data this version doesn't know) shows a warning: cues of an unknown type are

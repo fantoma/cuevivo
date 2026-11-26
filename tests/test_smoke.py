@@ -4789,9 +4789,11 @@ def t_update_check(w):
     assert is_newer("1.0.32", "1.0.31") and is_newer("1.1", "1.0.31") and not is_newer("1.0.31", "1.0.31")
     assert not is_newer("1.0.9", "1.0.31")
     answer = {"text": "1.0.32"}
+    seen = []
 
     class H(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
+            seen.append((self.path, self.headers.get("User-Agent", "")))
             b = answer["text"].encode()
             self.send_response(200)
             self.send_header("Content-Length", str(len(b)))
@@ -4816,6 +4818,14 @@ def t_update_check(w):
         run(0.1)
         g = w.menuBar().actionGeometry(w.help_menu.menuAction())
         assert up.label.x() > g.right(), (up.label.x(), g.right())
+        # statistiche d'uso: versione, sistema, architettura, codice anonimo stabile
+        import urllib.parse as _up
+        from cuestage import __version__
+        from cuestage.update_check import arch, os_family
+        qs = [_up.parse_qs(_up.urlparse(p).query) for p, _ua in seen]
+        assert len(qs) >= 2 and all(q["v"] == [__version__] and q["os"] == [os_family()] and q["arch"] == [arch()]
+                                    and q["osver"][0] and len(q["id"][0]) >= 16 for q in qs), seen
+        assert len({q["id"][0] for q in qs}) == 1 and seen[0][1].startswith("Cuevivo/" + __version__ + " (")
         none = UpdateChecker(w, "1.0.31", url="http://127.0.0.1:9/nessuno")   # senza risposta: niente
         none.start()
         run(0.5)
