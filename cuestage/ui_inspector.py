@@ -387,6 +387,8 @@ class Inspector(MediaTabsMixin, TextTabMixin, ControlTabsMixin, MixerTabMixin, S
                 self.tabs.setCurrentIndex(0)
         finally:
             self._tab_restoring = False
+        from .ui_elide import tame_combos
+        tame_combos(self.tabs)          # menu con nomi di cue/file lunghi: non allargano l'ispettore
 
     def _tab_chosen(self, i):
         """Scheda scelta dall'utente: si ricorda (anche al prossimo avvio)."""

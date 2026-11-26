@@ -25,6 +25,9 @@ def list_color(i):
     return lc(i)
 
 
+TAB_CHARS = 28          # caratteri massimi del nome di una lista nel suo tab
+
+
 class ListTabs(QWidget):
     """Barra dei tab sopra la tabella delle cue."""
     currentChanged = Signal(int)
@@ -88,6 +91,9 @@ class ListTabs(QWidget):
         while self.bar.count() > len(names):
             self.bar.removeTab(self.bar.count() - 1)
         for i, n in enumerate(names):
+            full = n
+            if len(n) > TAB_CHARS:             # nome lungo: puntini (intero nel suggerimento), la barra non si allarga
+                n = n[:TAB_CHARS - 1].rstrip() + "…"
             if i in self.disabled:             # barrato: il tab non ha un carattere proprio
                 n = "".join(ch + "\u0336" for ch in n)
             text = ("▶ " if i in running else "") + n + ("  ⏵GO" if i == go_index else "")
@@ -102,8 +108,9 @@ class ListTabs(QWidget):
                 self.bar.setTabIcon(i, _dot(list_color(i)))
             else:
                 self.bar.setTabIcon(i, QIcon())
-            self.bar.setTabToolTip(i, (tr("Lista principale") if i == 0 else tr("PANEL · doppio clic: rinomina · "
-                                       "tasto destro: altre azioni"))
+            self.bar.setTabToolTip(i, (full + "\n" if full != n.replace("\u0336", "") else "")
+                                   + (tr("Lista principale") if i == 0 else tr("PANEL · doppio clic: rinomina · "
+                                      "tasto destro: altre azioni"))
                                    + (tr("\nGO agisce su questa lista") if i == go_index else "")
                                    + (tr("\nCue in riproduzione") if i in running else ""))
         if self.bar.currentIndex() != current:

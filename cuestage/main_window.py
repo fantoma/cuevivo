@@ -284,12 +284,13 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         bar.addWidget(self.go_target, 0, Qt.AlignVCenter)
         bar.addSpacing(6)
         sb = QVBoxLayout()
-        self.standby = QLabel("—")
+        from .ui_elide import ElidedLabel
+        self.standby = ElidedLabel("—")       # nomi lunghi: puntini, non allargano la barra
         f = QFont()
         f.setPointSize(16)
         f.setBold(True)
         self.standby.setFont(f)
-        self.standby_notes = QLabel("")
+        self.standby_notes = ElidedLabel("")
         self.standby_notes.setStyleSheet("color:#aaa;")
         sb.addWidget(QLabel(tr("In attesa (standby):")))
         sb.addWidget(self.standby)
@@ -547,7 +548,8 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         self.local_stop_btn.setToolTip(tr("Ferma solo le cue di questo PANEL (le altre liste continuano)"))
         self.local_stop_btn.clicked.connect(self.local_stop_pressed)
         lg.addWidget(self.local_stop_btn)
-        self.local_standby = QLabel()
+        from .ui_elide import ElidedLabel
+        self.local_standby = ElidedLabel()
         self.local_standby.setStyleSheet("color:#e8e8ee;font-size:14px;font-weight:bold;")
         lg.addWidget(self.local_standby, 1)
         self.local_go.setVisible(False)

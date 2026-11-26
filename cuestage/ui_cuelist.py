@@ -778,6 +778,7 @@ class ActivePanel(QWidget):
         self.rows = []
         self.bars = []
         self.badges = []
+        self.labels = []                 # nomi come disegnati (con i puntini se troppo lunghi)
         s = self.scale
         p.scale(s, s)                     # tutto in coordinate «normali», ingrandite o ridotte
         W = self.width() / s
@@ -817,8 +818,17 @@ class ActivePanel(QWidget):
                 tx += tw + 6
                 p.setFont(fb)
             p.setPen(QColor(235, 235, 240))
-            p.drawText(QRectF(tx, r.top() + 2, r.right() - 72 - tx, 18),
-                       Qt.AlignLeft | Qt.AlignVCenter, f"{TYPE_ICONS.get(cue.type, '')}  {cue.label()}")
+            # nome della cue con i puntini: non deve coprire il tempo scritto a destra sulla stessa riga
+            data = _marker_bar_data(self.ctrl, cue, x) if kind != "wait" else None
+            right_txt = (("⏸ " if (x.paused or self.ctrl.paused_all) else "") + _bar_text(x)) if data is not None else ""
+            p.setFont(f)
+            rw = p.fontMetrics().horizontalAdvance(right_txt) + 12 if right_txt else 0
+            p.setFont(fb)
+            tr_ = QRectF(tx, r.top() + 2, max(0.0, min(r.right() - 72, r.left() + 8 + r.width() - 92 - rw) - tx), 18)
+            shown = p.fontMetrics().elidedText(f"{TYPE_ICONS.get(cue.type, '')}  {cue.label()}", Qt.ElideRight,
+                                               int(max(0, tr_.width())))
+            p.drawText(tr_, Qt.AlignLeft | Qt.AlignVCenter, shown)
+            self.labels.append(shown)
             bar = QRectF(r.left() + 8, r.top() + 22, r.width() - 92, 18)
             p.setPen(Qt.NoPen)
             p.setBrush(QColor(55, 57, 66))
@@ -839,7 +849,6 @@ class ActivePanel(QWidget):
                 prog = inst.progress()
                 paused = inst.paused or self.ctrl.paused_all
                 col = QColor(230, 170, 40) if paused else QColor(60, 200, 110)
-                data = _marker_bar_data(self.ctrl, cue, inst)
                 if data is not None:
                     from .markers import paint_bar
                     ax, marks, pos = data
@@ -847,8 +856,7 @@ class ActivePanel(QWidget):
                     self.bars.append((bar, ax, marks))
                     p.setPen(QColor(200, 200, 210))
                     p.drawText(QRectF(r.left() + 8, r.top() + 2, r.width() - 92, 18),
-                               Qt.AlignRight | Qt.AlignVCenter,
-                               ("⏸ " if paused else "") + _bar_text(inst))
+                               Qt.AlignRight | Qt.AlignVCenter, right_txt)
                 elif prog is not None:
                     bb = QRectF(bar)
                     bb.setWidth(bar.width() * prog)

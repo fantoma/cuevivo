@@ -5044,6 +5044,64 @@ def t_active_feed(w):
         run(0.2)
 
 
+def t_long_names(w):
+    """Nomi di cue, file e PANEL lunghissimi a 1366 px di larghezza: la finestra non si allarga, la barra in alto
+    non scorre, standby e tab con i puntini (testo intero nel suggerimento), menu dell'ispettore stretti."""
+    from PySide6.QtWidgets import QLabel
+    from cuestage.main_window import _BarScroll
+    long = "Nome di cue lunghissimo " * 8
+    a = tone("Un file con un nome davvero molto ma molto lungo per provare la larghezza della finestra.wav", 1)
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    sh.cues[:] = [Cue("audio", number="1", name=long, file=a), Cue("fade", number="2", name=long, target="1"),
+                  Cue("text", number="3", name=long, text_content="x")]
+    sh.add_panel("PANEL " + long).cues.append(Cue("audio", number="P1", name=long, file=a))
+    old = w.size()
+    w.resize(1366, 740)
+    w._set_show(sh)
+    run(0.3)
+    try:
+        for r in range(3):
+            w._select_row(r)
+            w.ctrl.set_playhead(r)
+            run(0.2)
+            ins = w.inspector
+            for i in range(ins.tabs.count()):
+                if ins._tab_keys[i] in ("Tempi e loop",):          # forma d'onda e marker: larghi di loro
+                    continue
+                ins.tabs.setCurrentIndex(i)
+                run(0.05)
+                page = ins.tabs.currentWidget()
+                page = page.widget() if hasattr(page, "widget") and page.widget() is not None else page
+                assert page.minimumSizeHint().width() < 900, (r, ins._tab_keys[i], page.minimumSizeHint().width())
+            assert w.minimumSizeHint().width() <= 1366 and w.width() <= 1366, (w.minimumSizeHint(), w.width())
+        bar = w.findChildren(_BarScroll)[0]
+        assert bar.horizontalScrollBar().maximum() == 0, bar.horizontalScrollBar().maximum()
+        shown = QLabel.text(w.standby)
+        assert shown.endswith("…") and long.strip() in w.standby.text() and w.standby.toolTip()
+        tab = w.list_tabs.bar.tabText(1)
+        assert "…" in tab and len(tab) < 40 and long.strip() in w.list_tabs.bar.tabToolTip(1)
+        # cue attive (nel pannello e nella finestra separata): nomi con i puntini, larghezza invariata
+        w.ctrl.start_cue(sh.cues[0])
+        w.ctrl.start_cue(sh.lists[1].cues[0])
+        run(0.3)
+        win = w.float_active()
+        win.resize(420, 400)
+        run(0.3)
+        for panel in (w.active, win.panel):
+            panel.repaint()
+            assert len(panel.labels) == 2 and all(l.endswith("…") for l in panel.labels), panel.labels
+            assert panel.minimumSizeHint().width() < 300
+        assert win.minimumSizeHint().width() < 420 and w.minimumSizeHint().width() <= 1366
+    finally:
+        if getattr(w, "active_window", None) is not None:
+            w.dock_active()
+        w.ctrl.stop_all(0)
+        run(0.2)
+        w.resize(old)
+        w.show_data.dirty = False
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -6012,6 +6070,7 @@ if __name__ == "__main__":
     check("Cue sheet: CSV e PDF", lambda: t_cue_sheet(w))
     check("Copie precedenti dello show: salvataggi, limite, ripresa", lambda: t_snapshots(w))
     check("Cue attive per i programmi OSC (Script Follower): abbonamento, stato, filtri, stop e pausa", lambda: t_active_feed(w))
+    check("Nomi lunghi a 1366 px: la finestra non si allarga (puntini)", lambda: t_long_names(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))
