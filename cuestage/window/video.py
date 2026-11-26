@@ -127,8 +127,10 @@ class VideoMixin:
             return
         out = self.output
         if out is None or not out.isVisible():
-            return
+            return                                   # Chiudi non apre mai l'uscita
         if what == "hide":
+            if out.isFullScreen():
+                out.showNormal()                     # la prossima apertura decide di nuovo schermo e modalità
             out.hide()
             self.act_out_show.setText(tr("Mostra finestra di uscita"))
         elif out.isFullScreen():

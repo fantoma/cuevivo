@@ -795,7 +795,7 @@ class ControlTabsMixin:
         cue = self.cue
         act = self._combo("fs_action", ["open", "close"], {"open": tr("Apri"), "close": tr("Chiudi")})
         f.addRow(tr("Azione"), act)
-        hide = self._check("fs_hide", tr("Nascondi anche la finestra di uscita"))
+        hide = self._check("fs_window", tr("Lascia aperta la finestra di uscita (in finestra)"))
         f.addRow(hide)
         lab = QLabel()
         lab.setWordWrap(True)
@@ -805,9 +805,10 @@ class ControlTabsMixin:
             "open": tr("Al GO la finestra di uscita video si apre a schermo intero sullo schermo scelto nel menu "
                        "Uscita video (con un solo schermo resta in finestra, per non coprire la regia). "
                        "L'impostazione «Schermo intero» del menu non cambia."),
-            "close": tr("Al GO la finestra di uscita video esce dallo schermo intero e resta aperta in finestra sullo "
-                        "stesso schermo (con la spunta: si nasconde). L'impostazione «Schermo intero» del menu Uscita "
-                        "video non cambia: «Mostra finestra di uscita» la riporta a schermo intero.")}
+            "close": tr("Al GO la finestra di uscita video esce dallo schermo intero e si nasconde: sul proiettore "
+                        "non resta nessuna finestra (con la spunta resta aperta in finestra sullo stesso schermo). "
+                        "Se l'uscita non è visibile non succede nulla. L'impostazione «Schermo intero» del menu "
+                        "Uscita video non cambia: «Mostra finestra di uscita» la riporta a schermo intero.")}
 
         def sync(_i=None):
             a = getattr(cue, "fs_action", "open") or "open"

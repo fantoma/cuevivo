@@ -2174,16 +2174,18 @@ def t_levels_zero(w):
 
 
 def t_fsclose(w):
-    """Cue «Schermo intero»: Apri (finestra di uscita a schermo intero) e Chiudi (esce dallo schermo intero o si
-    nasconde); le vecchie cue «Chiudi schermo intero» diventano Schermo intero › Chiudi."""
+    """Cue «Schermo intero»: Apri (finestra di uscita a schermo intero) e Chiudi (la nasconde, o con «lascia
+    aperta» esce dallo schermo intero; non apre mai l'uscita); le vecchie cue «Chiudi schermo intero» diventano
+    Schermo intero › Chiudi."""
     from PySide6.QtWidgets import QApplication, QComboBox
     old = Cue.from_dict({"type": "fsclose", "number": "9", "fs_hide": True})
     assert old.type == "fullscreen" and old.fs_action == "close" and old.fs_hide
     assert Cue("fullscreen").fs_action == "open"
     sh = Show()
     sh.settings["output_fullscreen"] = False
-    c1 = Cue("fullscreen", number="1", name="Chiudi", fs_action="close")
-    c2 = Cue("fullscreen", number="2", name="Nascondi", fs_action="close", fs_hide=True)
+    c1 = Cue("fullscreen", number="1", name="In finestra", fs_action="close", fs_window=True)
+    c2 = Cue("fullscreen", number="2", name="Chiudi", fs_action="close")
+    assert not Cue("fullscreen", fs_action="close").fs_window          # di serie Chiudi nasconde
     c3 = Cue("fullscreen", number="3", name="Apri")
     sh.cues = [c1, c2, c3]
     w._set_show(sh)
@@ -2213,6 +2215,19 @@ def t_fsclose(w):
     w.ctrl.start_cue(c2)
     run(0.2)
     assert not w.output.isVisible()
+    w.ctrl.start_cue(c2)                         # uscita nascosta: Chiudi non la riapre
+    w.ctrl.start_cue(c1)
+    run(0.2)
+    assert not w.output.isVisible()
+    w.output.place_on_screen(None, True)         # a schermo intero: Chiudi la nasconde, nessuna finestra resta
+    run(0.2)
+    w.ctrl.start_cue(c2)
+    run(0.2)
+    assert not w.output.isVisible() and not w.output.isFullScreen()
+    w._drop_output()                             # uscita mai creata: Chiudi non la crea
+    w.ctrl.start_cue(c2)
+    run(0.2)
+    assert w.output is None or not w.output.isVisible()
     w.show_data.dirty = False
 
 

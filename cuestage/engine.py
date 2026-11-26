@@ -1789,15 +1789,16 @@ class ControlInstance(Instance):
 
 
 class FullscreenInstance(Instance):
-    """Schermo intero della finestra di uscita: Apri (la mostra a schermo intero) o Chiudi (la riporta in
-    finestra, o la nasconde)."""
+    """Schermo intero della finestra di uscita: Apri (la mostra a schermo intero) o Chiudi (la nasconde: sul
+    proiettore non resta una finestra; con «resta aperta in finestra» la riporta in finestra). Chiudi non apre
+    mai l'uscita se non è visibile."""
 
     def start(self, silent=False):
         c = self.cue
         if (getattr(c, "fs_action", "open") or "open") == "open":
             self.ctrl.outputRequest.emit("open")
         else:
-            self.ctrl.outputRequest.emit("hide" if getattr(c, "fs_hide", False) else "windowed")
+            self.ctrl.outputRequest.emit("windowed" if getattr(c, "fs_window", False) else "hide")
         self.finish()
 
 
