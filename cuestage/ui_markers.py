@@ -18,6 +18,43 @@ def action_labels():
             "pause": tr("Pause Cue"), "pause_goto": tr("Pause Cue e vai al marker")}
 
 
+def fmt_hms(t):
+    """Tempo come «mm:ss.cc» (o «h:mm:ss.cc» oltre l'ora)."""
+    t = max(0.0, float(t))
+    cs = int(round(t * 100))
+    h, cs = divmod(cs, 360000)
+    m, cs = divmod(cs, 6000)
+    s, cs = divmod(cs, 100)
+    return f"{h}:{m:02d}:{s:02d}.{cs:02d}" if h else f"{m:02d}:{s:02d}.{cs:02d}"
+
+
+class TimeSpin(QDoubleSpinBox):
+    """Campo di un tempo mostrato in minuti e secondi («01:23.45»); si scrive anche «83.45», «1:23,4»,
+    «0:01:23.45». Le frecce e la rotella cambiano di 0,1 s."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDecimals(3)
+        self.setSingleStep(0.1)
+        self.setKeyboardTracking(False)
+
+    def textFromValue(self, v):
+        return fmt_hms(v)
+
+    def valueFromText(self, text):
+        from .srt import parse_time
+        t = parse_time(text)
+        return float(t) if t is not None else self.value()
+
+    def validate(self, text, pos):
+        from PySide6.QtGui import QValidator
+        from .srt import parse_time
+        if parse_time(text) is not None:
+            return QValidator.Acceptable, text, pos
+        ok = all(ch.isdigit() or ch in ":.," for ch in text)
+        return (QValidator.Intermediate if ok else QValidator.Invalid), text, pos
+
+
 def preset_names(cue):
     return sorted({n for k in PRESET_KINDS_FOR.get(cue.type, ()) for n in cue.preset_dict(k)}, key=str.lower)
 
@@ -117,14 +154,10 @@ class MarkersPanel(QWidget):
                 self.changed.emit()
         name.editingFinished.connect(name_done)
 
-        tm = QDoubleSpinBox()
+        tm = TimeSpin()
         tm.setRange(0, 360000)
-        tm.setDecimals(2)
-        tm.setSingleStep(0.1)
-        tm.setSuffix(" s")
-        tm.setKeyboardTracking(False)
         tm.setValue(float(m.get("t", 0)))
-        tm.setToolTip(tr("Posizione nel file (secondi)"))
+        tm.setToolTip(tr("Posizione nel file (minuti:secondi; si può scrivere anche in secondi, es. 83.5)"))
 
         def t_changed(v):
             m["t"] = round(float(v), 3)
@@ -227,13 +260,12 @@ class MarkersPanel(QWidget):
             goto.clear()
             goto.addItem(tr("— scegli il marker —"), "")
             import uuid
-            from .media import fmt_time
             for o in sorted(self.markers(), key=lambda x: float(x.get("t", 0) or 0)):
                 if o is m or not isinstance(o, dict):
                     continue
                 if not o.get("id"):
                     o["id"] = uuid.uuid4().hex[:10]     # i marker di destinazione si riconoscono per id
-                goto.addItem(f"{o.get('name') or 'M'} · {fmt_time(float(o.get('t', 0) or 0))}", o["id"])
+                goto.addItem(f"{o.get('name') or 'M'} · {fmt_hms(float(o.get('t', 0) or 0))}", o["id"])
             j = goto.findData(m.get("goto") or "")
             if j < 0 and m.get("goto"):
                 goto.addItem(tr("⚠ marker eliminato"), m["goto"])

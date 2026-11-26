@@ -888,7 +888,7 @@ class ActivePanel(QWidget):
                     self.bars.append((bar, ax, marks, cue.id))
                     p.setPen(QColor(200, 200, 210))
                     if sc is not None and sc["cid"] == cue.id:
-                        right_txt = "⇥ " + fmt_time(sc["t"])
+                        right_txt = self._scrub_text(sc)
                     p.drawText(QRectF(r.left() + 8, r.top() + 2, r.width() - 92, 18),
                                Qt.AlignRight | Qt.AlignVCenter, right_txt)
                 elif prog is not None:
@@ -938,7 +938,7 @@ class ActivePanel(QWidget):
         sc = self._scrub
         if sc is not None:
             sc["t"] = self._bar_time(sc["bar"], sc["ax"], pos.x())
-            QToolTip.showText(e.globalPosition().toPoint(), fmt_time(sc["t"]), self)
+            QToolTip.showText(e.globalPosition().toPoint(), self._scrub_text(sc), self)
             self.update()
             return
         on_bar = any(b[0].adjusted(0, -3, 0, 3).contains(pos) for b in getattr(self, "bars", []))
@@ -951,6 +951,14 @@ class ActivePanel(QWidget):
                     QToolTip.showText(e.globalPosition().toPoint(), txt, self)
                     return
         QToolTip.hideText()
+
+    @staticmethod
+    def _scrub_text(sc):
+        """Tempo scelto trascinando: della cue e assoluto del file («⇥ 01:23.4 · file 01:33.4»)."""
+        from .markers import cue_to_file
+        from .ui_markers import fmt_hms
+        ft = cue_to_file(sc["ax"], sc["t"])
+        return "⇥ " + fmt_time(sc["t"]) + (tr(" · file {0}", fmt_hms(ft[0])) if ft is not None else "")
 
     @staticmethod
     def _bar_time(bar, ax, x):

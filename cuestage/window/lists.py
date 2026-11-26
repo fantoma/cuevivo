@@ -349,6 +349,11 @@ class ListsMixin:
         return super().eventFilter(obj, ev)
 
     def _table_menu(self, pos):
+        from PySide6.QtGui import QCursor
+        from PySide6.QtWidgets import QApplication
+        under = QApplication.widgetAt(QCursor.pos())
+        if under is not None and under is not self.table.viewport() and not self.table.isAncestorOf(under):
+            return              # richiesta arrivata da un altro widget (es. un menu della forma d'onda appena chiuso)
         m = QMenu(self)
         if not self.table.indexAt(pos).isValid():     # clic nello spazio vuoto: si aggiunge in fondo
             self.table.clearSelection()

@@ -14,10 +14,10 @@ from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 COLORS = {
     "in": QColor(60, 210, 110), "out": QColor(235, 70, 70), "loop": QColor(240, 190, 40),
     "fade": QColor(235, 235, 240), "visual": QColor(255, 170, 40), "audio": QColor(80, 200, 255),
-    "curve": QColor(255, 140, 220),
+    "curve": QColor(255, 140, 220), "user": QColor(80, 210, 245),
 }
 KIND_LABELS = {"in": "IN", "out": "OUT", "loop": "loop", "fade": "fade", "visual": tr("keyframe immagine"),
-               "audio": tr("keyframe audio"), "curve": tr("punto curva volume")}
+               "audio": tr("keyframe audio"), "curve": tr("punto curva volume"), "user": tr("marker")}
 
 
 @dataclass
@@ -157,6 +157,17 @@ def cue_marks(cue, ax):
     for ft, db in (cue.curve or []) if cue.type in ("audio", "video") else []:
         for t in file_to_cue_times(ax, float(ft)):
             out.append(Mark(t, "curve", tr("curva {0:+.1f} dB", float(db))))
+    # marker dell'utente: pallini azzurri sul lato superiore della barra
+    if cue.type in ("audio", "video"):
+        for um in getattr(cue, "markers", None) or []:
+            if not isinstance(um, dict):
+                continue
+            try:
+                ft = float(um.get("t", 0))
+            except (TypeError, ValueError):
+                continue
+            for t in file_to_cue_times(ax, ft):
+                out.append(Mark(t, "user", f"{um.get('name') or 'M'} · {tr('marker')}"))
     for p in (cue.preset_points or []):
         try:
             t = float(p.get("t", 0))
@@ -244,6 +255,10 @@ def paint_bar(p, rect, ax, marks, pos, fill, show_text=None):
         elif m.kind in ("visual", "audio"):
             yy = rect.top() + (2.5 if m.kind == "visual" else h - 2.5)
             diamond(p, mx, yy, min(4.0, h / 3), col, hollow=m.label.endswith(": base"))
+        elif m.kind == "user":
+            p.setPen(QPen(QColor(0, 0, 0, 150), 0.8))
+            p.setBrush(col)
+            p.drawEllipse(QPointF(mx, rect.top() + 0.5), 2.6, 2.6)
     # cursore
     if pos > 0:
         p.setPen(QPen(QColor(255, 255, 255), 1.5))

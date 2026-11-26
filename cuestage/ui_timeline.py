@@ -42,6 +42,10 @@ class TimelineEditor(QWidget):
         self.playhead = None
         self.cursor_t = None          # cursore della timeline dei keyframe (tempo del file)
         self.restart_fn = None        # «Ricomincia da qui»: funzione(tempo del file), impostata dall'ispettore
+        # trascinamento della linea di riproduzione: scrub_begin_fn() sospende la cue e dice se era già in pausa
+        # (None = non sta suonando), scrub_end_fn(tempo del file, era_in_pausa) la fa ripartire da lì
+        self.scrub_begin_fn = None
+        self.scrub_end_fn = None
         self.thumbs = None            # (QImage striscia, n) miniature del video
         self.point_mode = "volume"    # doppio clic / Ctrl+clic: punto di «volume» o di «opacity» (video)
         self.snap = True              # trascinando un punto si aggancia a quelli delle altre curve e ai marker
@@ -49,6 +53,9 @@ class TimelineEditor(QWidget):
         self.setMinimumHeight(102)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.ClickFocus)
+        # il tasto destro apre già i suoi menu: nessun evento «menu contestuale» deve risalire ai widget sopra
+        # (finiva al menu della lista delle cue, che toglieva la selezione e svuotava l'ispettore)
+        self.setContextMenuPolicy(Qt.PreventContextMenu)
 
     # ------------------------------------------------------------ dati
     def set_cue(self, cue, duration, peaks):
@@ -130,6 +137,8 @@ class TimelineEditor(QWidget):
         self.update()
 
     def set_playhead(self, t):
+        if self.drag and self.drag[0] == "scrub":
+            return                                   # durante il trascinamento la linea segue il mouse
         if t != self.playhead:
             self.playhead = t
             self.update()
@@ -860,6 +869,14 @@ class TimelineEditor(QWidget):
             else:
                 self._menu(e, pos)
             return
+        if e.button() == Qt.LeftButton and not self._grabs(hit) and self._near_playhead(pos) \
+                and self.scrub_begin_fn is not None:
+            was = self.scrub_begin_fn()              # la cue si sospende finché non si rilascia
+            if was is not None:
+                self.drag = ("scrub", was)
+                self.playhead = self.x2t(pos.x())
+                self.update()
+                return
         if e.button() == Qt.LeftButton:
             if hit and hit[0] == "kf":
                 self.drag = ("kf", hit[1], float(hit[1].get("t", 0)), hit[2])
@@ -920,8 +937,27 @@ class TimelineEditor(QWidget):
         self.changed.emit()
         self.update()
 
+    @staticmethod
+    def _grabs(hit):
+        """Oggetti che si trascinano loro anche se sono sulla linea di riproduzione (marker, punti, keyframe…);
+        le linee del volume e dell'opacità no."""
+        return bool(hit) and hit[0] not in ("seg", "level", "oseg", "opacity")
+
+    def _near_playhead(self, pos):
+        return self.playhead is not None and abs(pos.x() - self.t2x(self.playhead)) <= 6 and pos.y() > HANDLE_H
+
     def mouseMoveEvent(self, e):
         pos = e.position()
+        if self.drag and self.drag[0] == "scrub":
+            self.playhead = self.x2t(pos.x())
+            QToolTip.showText(e.globalPosition().toPoint(), "⇥ " + fmt_time(self.playhead), self)
+            self.update()
+            return
+        if self.drag is None and self._near_playhead(pos) and self.scrub_begin_fn is not None \
+                and not self._grabs(self._hit(pos)):
+            self.setCursor(Qt.SizeHorCursor)
+            QToolTip.showText(e.globalPosition().toPoint(), tr("Trascina per spostare la riproduzione"), self)
+            return
         if self.drag is None:
             for kx, ky, tip, _pt, _ft in getattr(self, "_kf_hits", []):
                 if abs(kx - pos.x()) < 6 and abs(ky - pos.y()) < 6:
@@ -1081,6 +1117,10 @@ class TimelineEditor(QWidget):
             self._snap_x = None
             self.update()
         if not d:
+            return
+        if d[0] == "scrub":
+            if self.scrub_end_fn is not None and self.playhead is not None:
+                self.scrub_end_fn(self.playhead, d[1])
             return
         if d[0] == "point":
             self.cue.curve.sort()

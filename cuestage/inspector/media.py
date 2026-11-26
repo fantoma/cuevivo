@@ -608,6 +608,8 @@ class MediaTabsMixin:
         self.timeline.setFixedHeight(114)
         self.timeline.changed.connect(self._timeline_changed)
         self.timeline.restart_fn = lambda ft, c=cue: self._restart_from(c, ft)
+        self.timeline.scrub_begin_fn = lambda c=cue: self._scrub_begin(c)
+        self.timeline.scrub_end_fn = lambda ft, was, c=cue: self._scrub_end(c, ft, was)
         v.addWidget(self.timeline)
         v.addWidget(self._timeline_scrollbar(self.timeline))
         if cue.type == "video":
@@ -668,8 +670,11 @@ class MediaTabsMixin:
         if cue.type == "video":
             top.addWidget(QLabel(tr("Opacità")))
             top.addWidget(self._cursor_value_spin("opacity"))
-        top.addSpacing(10)
-        row = top                       # loop sulla stessa riga di IN, OUT, volume e fade
+        top.addStretch(1)
+        # loop su una riga sua: con tutto sulla stessa riga l'ispettore si allargava oltre i 1366 px e la forma
+        # d'onda finiva in parte fuori vista
+        loop_row = QHBoxLayout()
+        row = loop_row
         lc = self._check("loop", tr("Loop"))
         grp = self.show_fn().by_id(cue.group) if cue.group else None
         if grp is not None and grp.type == "group" and grp.group_mode in ("playlist", "rplaylist"):
@@ -761,6 +766,7 @@ class MediaTabsMixin:
         row.addWidget(bc)
         row.addWidget(bz)
         v.addLayout(top)
+        v.addLayout(loop_row)
         if cue.type == "video":
             v.addLayout(self._video_sep_row())
         # ---- elenco dei marker: nome, tempo, note, azione
@@ -1570,6 +1576,22 @@ class MediaTabsMixin:
         cue_t = tl._cue_time_of(ft) if tl is not None else max(0.0, ft - float(cue.start or 0))
         if self.ctrl.restart_from(cue, cue_t):
             self.ctrl.message.emit(tr("▶ {0} da {1}", cue.label(), fmt_time(ft)))
+
+    def _scrub_begin(self, cue):
+        """Linea di riproduzione presa col mouse: la cue in corso si sospende. Era già in pausa? None = ferma."""
+        inst = self.ctrl.instances.get(cue.id)
+        if inst is None or inst.done or getattr(inst, "_closing", False):
+            return None
+        was = bool(inst.paused)
+        if not was:
+            self.ctrl.pause_cue(cue.id, True)
+        return was
+
+    def _scrub_end(self, cue, ft, was_paused):
+        """Rilasciata: la cue riparte dal punto scelto (se era già in pausa resta in pausa lì)."""
+        self._restart_from(cue, ft)
+        if was_paused:
+            self.ctrl.pause_cue(cue.id, True)
 
     def _update_playhead(self):
         if self.timeline is None or self.cue is None:

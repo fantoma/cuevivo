@@ -862,8 +862,10 @@ def t_inspector_layout(w):
     names[0].setText("Tuono")
     names[0].editingFinished.emit()
     assert a.markers[0]["name"] == "Tuono"
-    spins = [x for x in mp.findChildren(QDoubleSpinBox) if x.isVisible() and x.suffix() == " s" and x.maximum() > 1000]
-    spins[0].setValue(0.4)                                     # colonna del tempo
+    from cuestage.ui_markers import TimeSpin
+    spins = [x for x in mp.findChildren(TimeSpin) if x.isVisible()]
+    spins[0].setValue(0.4)                                     # colonna del tempo (minuti:secondi)
+    assert spins[0].text() == "00:00.40"
     assert abs(a.markers[0]["t"] - 0.4) < 1e-6
     combos = [x for x in mp.findChildren(QComboBox) if x.isVisible() and x.findData("cue") >= 0]
     combos[0].setCurrentIndex(combos[0].findData("cue"))
@@ -5078,8 +5080,6 @@ def t_long_names(w):
             run(0.2)
             ins = w.inspector
             for i in range(ins.tabs.count()):
-                if ins._tab_keys[i] in ("Tempi e loop",):          # forma d'onda e marker: larghi di loro
-                    continue
                 ins.tabs.setCurrentIndex(i)
                 run(0.05)
                 page = ins.tabs.currentWidget()
@@ -5190,6 +5190,28 @@ def t_active_scrub(w):
         QTest.mouseRelease(w.active, Qt.LeftButton, Qt.NoModifier, at(0.25))
         run(0.3)
         assert inst.paused and abs(inst.position() - 2.0) < 0.3, inst.position()
+        # il tempo mostrato trascinando ha anche quello assoluto del file (qui IN = 0: coincidono)
+        from cuestage.i18n import tr
+        sc = {"ax": w.active.bars[0][1], "t": 3.0}
+        assert w.active._scrub_text(sc) == "⇥ 00:03.0" + tr(" · file {0}", "00:03.00")
+        # anche la linea di riproduzione della forma d'onda nell'ispettore si trascina
+        w.ctrl.pause_cue(c.id, False)
+        w._select_row(0)
+        ins = w.inspector
+        ins.tabs.setCurrentIndex(ins._tab_keys.index("Tempi e loop"))
+        run(0.4)
+        tl = ins.timeline
+        x0 = int(tl.t2x(tl.playhead))
+        y = tl.height() // 2
+        QTest.mousePress(tl, Qt.LeftButton, Qt.NoModifier, QPoint(x0, y))
+        run(0.1)
+        assert inst.paused
+        QTest.mouseMove(tl, QPoint(int(tl.t2x(6.0)), y))
+        run(0.2)
+        assert inst.paused and abs(tl.playhead - 6.0) < 0.1
+        QTest.mouseRelease(tl, Qt.LeftButton, Qt.NoModifier, QPoint(int(tl.t2x(6.0)), y))
+        run(0.3)
+        assert not inst.paused and inst.position() > 5.8, inst.position()
     finally:
         w.ctrl.stop_all(0)
         run(0.2)
@@ -5197,8 +5219,9 @@ def t_active_scrub(w):
 
 def t_marker_pause(w):
     """Marker «Pause Cue» (riprende col ▶ delle cue attive) e «Pause Cue e vai al marker» (riprende col GO
-    principale): la cue si ferma, il marker di destinazione non scatta all'arrivo, il GO la fa ripartire invece
-    di mandare la cue successiva; poi il GO torna normale."""
+    principale): la cue si ferma, il marker di destinazione esegue la sua azione all'arrivo (e non di nuovo alla
+    ripresa), il GO la fa ripartire invece di mandare la cue successiva; poi il GO torna normale."""
+    from PySide6.QtCore import Qt
     from cuestage.i18n import tr
     sh = Show()
     sh.settings["output_fullscreen"] = False
@@ -5207,14 +5230,15 @@ def t_marker_pause(w):
         {"t": 1.0, "name": "A", "action": "pause", "resume": "active"},
         {"t": 2.0, "name": "B", "action": "pause_goto", "goto": "mC", "resume": "go"},
         {"t": 5.0, "name": "C", "id": "mC", "action": "cue", "target": "2"}])
-    nxt = Cue("wait", number="2", name="Dopo", duration=10.0)
-    sh.cues[:] = [c, nxt]
+    nxt = Cue("wait", number="2", name="Chiamata", duration=10.0, trigger="trigger")
+    after = Cue("wait", number="3", name="Dopo", duration=10.0)
+    sh.cues[:] = [c, nxt, after]
     w._set_show(sh)
     w.loader.audio_now(a)
     run(0.2)
     try:
         w.ctrl.start_cue(c)
-        w.ctrl.set_playhead(1)
+        w.ctrl.set_playhead(2)
         inst = w.ctrl.instances[c.id]
         assert wait_until(lambda: inst.paused, 4) and inst.marker_hold == "active"
         assert abs(inst.position() - 1.0) < 0.2, inst.position()
@@ -5223,16 +5247,18 @@ def t_marker_pause(w):
         assert wait_until(lambda: inst.paused and inst.marker_hold == "go", 4)
         assert abs(inst.position() - 5.0) < 0.2, inst.position()           # spostata sul marker C
         run(0.3)
-        assert nxt.id not in w.ctrl.instances                # il marker di destinazione non scatta all'arrivo
+        assert nxt.id in w.ctrl.instances                    # il marker di destinazione esegue la sua azione
+        w.ctrl.stop_cue(nxt.id, 0.0)
+        run(0.2)
         w._update_standby()
         assert w.standby.text() == tr("⏸ {0}: GO = riprendi", c.label())
         w.go()                                               # il GO riprende la cue, non manda la successiva
         run(0.3)
-        assert not inst.paused and inst.marker_hold is None and nxt.id not in w.ctrl.instances
-        assert inst.position() > 5.1
+        assert not inst.paused and inst.marker_hold is None and after.id not in w.ctrl.instances
+        assert inst.position() > 5.1 and nxt.id not in w.ctrl.instances     # alla ripresa C non riscatta
         w.go()                                               # mentre suona: GO normale
         run(0.2)
-        assert nxt.id in w.ctrl.instances
+        assert after.id in w.ctrl.instances
         # editor dei marker con le nuove azioni
         w._select_row(0)
         ins = w.inspector
@@ -5242,6 +5268,16 @@ def t_marker_pause(w):
         gotos = [cb for cb in ins.findChildren(QComboBox) if cb.isVisible() and cb.findData("mC") >= 0]
         assert gotos and gotos[0].currentData() == "mC"
         assert all(o.get("id") for o in c.markers if o["name"] != "B")
+        # pallini azzurri dei marker sulle barre, tempi in minuti e secondi, niente menu della lista dalla forma d'onda
+        from cuestage.markers import cue_axis, cue_marks
+        ax = cue_axis(c, w.loader.duration(a))
+        assert sorted(m.t for m in cue_marks(c, ax) if m.kind == "user") == [1.0, 2.0, 5.0]
+        from cuestage.ui_markers import TimeSpin
+        ts = TimeSpin()
+        ts.setRange(0, 36000)
+        assert ts.textFromValue(83.5) == "01:23.50" and ts.valueFromText("1:23,5") == 83.5
+        assert ts.valueFromText("83.25") == 83.25 and ts.textFromValue(3725.0) == "1:02:05.00"
+        assert ins.timeline.contextMenuPolicy() == Qt.PreventContextMenu
     finally:
         w.ctrl.stop_all(0)
         run(0.2)
