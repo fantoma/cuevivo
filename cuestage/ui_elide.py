@@ -4,7 +4,7 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QComboBox, QLabel, QSizePolicy
 
 MAX_HINT = 420          # larghezza «desiderata» massima di un'etichetta (px): oltre, si tronca con «…»
-COMBO_CHARS = 24        # caratteri visibili di un menu a tendina con voci lunghe
+COMBO_CHARS = 40        # caratteri massimi visibili nella voce scelta di un menu a tendina (oltre: troncata)
 
 
 class ElidedLabel(QLabel):
@@ -52,42 +52,86 @@ class ElidedLabel(QLabel):
         return QSize(min(w, MAX_HINT), super().sizeHint().height())
 
 
-def tame_combo(cb, chars=COMBO_CHARS):
-    """Menu a tendina con voci lunghe (nomi di cue o di file): larghezza contenuta, voce scelta troncata, elenco
-    aperto largo quanto serve (fino a quasi tutto lo schermo)."""
-    if cb.property("_tamed"):
-        return
-    cb.setProperty("_tamed", True)
-    cb.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-    cb.setMinimumContentsLength(chars)
-    # Qt tiene in memoria la misura minima già calcolata (larga quanto la voce più lunga) e il layout la usa:
-    # si fissa la larghezza a quella dei caratteri scelti
-    cb.setFixedWidth(cb.sizeHint().width())
-    v = cb.view()
+def fit_combo(cb, chars=COMBO_CHARS):
+    """Menu a tendina largo quanto la voce scelta (cambia con lei), al massimo «chars» caratteri (oltre, la voce
+    si tronca); l'elenco aperto è largo quanto la voce più lunga (fino a quasi tutto lo schermo)."""
+    from PySide6.QtWidgets import QStyle, QStyleOptionComboBox
+    if not cb.property("_fit"):
+        cb.setProperty("_fit", True)
+        sp = cb.sizePolicy()
+        sp.setHorizontalPolicy(QSizePolicy.Fixed)
+        cb.setSizePolicy(sp)
+        cb.currentIndexChanged.connect(lambda *_: fit_combo(cb, chars))
+        if cb.isEditable():
+            cb.editTextChanged.connect(lambda *_: fit_combo(cb, chars))
+        m = cb.model()
+        for sig in (m.rowsInserted, m.rowsRemoved, m.modelReset):
+            sig.connect(lambda *_: fit_combo(cb, chars))
+        if not cb.toolTip():                  # la voce scelta per intero nel suggerimento
+            cb.setProperty("_auto_tip", True)
     fm = cb.fontMetrics()
+    text = cb.currentText()
+    tw = min(fm.horizontalAdvance(text or "  "), fm.averageCharWidth() * chars)
+    opt = QStyleOptionComboBox()
+    cb.initStyleOption(opt)
+    if cb.currentIndex() >= 0 and not cb.itemIcon(cb.currentIndex()).isNull():
+        tw += cb.iconSize().width() + 4
+    sz = cb.style().sizeFromContents(QStyle.CT_ComboBox, opt, QSize(tw, fm.height()), cb)
+    w = max(56, sz.width() + (8 if cb.isEditable() else 2))
+    if cb.width() != w or cb.minimumWidth() != w:
+        cb.setFixedWidth(w)
     widest = max((fm.horizontalAdvance(cb.itemText(i)) for i in range(cb.count())), default=0) + 40
     scr = cb.screen()
     limit = int(scr.availableGeometry().width() * 0.9) if scr is not None else 1200
-    v.setMinimumWidth(min(widest, limit))
-    v.setTextElideMode(Qt.ElideMiddle)
-    if not cb.toolTip():                      # la voce scelta per intero nel suggerimento
-        cb.setToolTip(cb.currentText())
-        cb.currentTextChanged.connect(cb.setToolTip)
+    cb.view().setMinimumWidth(min(widest, limit))
+    cb.view().setTextElideMode(Qt.ElideMiddle)
+    if cb.property("_auto_tip"):
+        cb.setToolTip(text if fm.horizontalAdvance(text) > tw else "")
 
 
-def tame_combos(widget, limit=360):
-    """Menu a tendina del widget larghi quanto il loro testo (non si allungano a riempire la riga); quelli con
-    voci più lunghe di «limit» px restano stretti, con la voce scelta troncata."""
+def _pack_left(layout):
+    """Riga orizzontale senza nessun elemento che si allarghi: si aggiunge uno spazio in fondo, così i campi
+    restano raggruppati a sinistra invece di distribuirsi su tutta la riga."""
+    from PySide6.QtWidgets import QHBoxLayout
+    if not isinstance(layout, QHBoxLayout) or layout.property("_packed"):
+        return
+    for i in range(layout.count()):
+        it = layout.itemAt(i)
+        sp, wd = it.spacerItem(), it.widget()
+        if sp is not None:
+            if layout.stretch(i) > 0 or sp.expandingDirections() & Qt.Horizontal:
+                return                         # c'è già uno spazio elastico
+            continue                           # spaziatura fissa
+        if layout.stretch(i) > 0 and (it.layout() is not None or
+                                      (wd is not None and wd.sizePolicy().horizontalPolicy() != QSizePolicy.Fixed)):
+            return                             # c'è già chi prende lo spazio in più
+        if wd is not None and wd.sizePolicy().horizontalPolicy() in (
+                QSizePolicy.Expanding, QSizePolicy.MinimumExpanding, QSizePolicy.Ignored):
+            return
+    layout.setProperty("_packed", True)
+    layout.addStretch(1)
+
+
+def _layout_of(widget):
+    """Layout (anche annidato) che contiene direttamente il widget."""
+    par = widget.parentWidget()
+    root = par.layout() if par is not None else None
+    stack = [root] if root is not None else []
+    while stack:
+        lay = stack.pop()
+        for i in range(lay.count()):
+            it = lay.itemAt(i)
+            if it.widget() is widget:
+                return lay
+            if it.layout() is not None:
+                stack.append(it.layout())
+    return None
+
+
+def tame_combos(widget):
+    """Menu a tendina del widget larghi quanto la voce scelta, raggruppati a sinistra nelle loro righe."""
     for cb in widget.findChildren(QComboBox):
-        fm = cb.fontMetrics()
-        widest = max((fm.horizontalAdvance(cb.itemText(i)) for i in range(cb.count())), default=0)
-        if widest > limit - 40:          # misura sulle voci: la sizeHint prima della prima comparsa non è affidabile
-            tame_combo(cb)
-        elif not cb.property("_tamed"):
-            cb.setSizeAdjustPolicy(QComboBox.AdjustToContents)
-        if not cb.property("_fit"):
-            cb.setProperty("_fit", True)
-            sp = cb.sizePolicy()
-            sp.setHorizontalPolicy(QSizePolicy.Fixed)      # larghezza = testo contenuto, non tutta la riga
-            cb.setSizePolicy(sp)
-        cb.updateGeometry()                 # il layout ricalcola con le nuove misure (le tiene in memoria)
+        fit_combo(cb)
+        lay = _layout_of(cb)
+        if lay is not None:
+            _pack_left(lay)

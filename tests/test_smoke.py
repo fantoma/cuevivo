@@ -5048,6 +5048,7 @@ def t_long_names(w):
     """Nomi di cue, file e PANEL lunghissimi a 1366 px di larghezza: la finestra non si allarga, la barra in alto
     non scorre, standby e tab con i puntini (testo intero nel suggerimento), menu dell'ispettore stretti."""
     from PySide6.QtWidgets import QLabel
+    from cuestage.i18n import tr
     from cuestage.main_window import _BarScroll
     long = "Nome di cue lunghissimo " * 8
     a = tone("Un file con un nome davvero molto ma molto lungo per provare la larghezza della finestra.wav", 1)
@@ -5083,8 +5084,26 @@ def t_long_names(w):
         ins.tabs.setCurrentIndex(ins._tab_keys.index("Fade"))
         run(0.2)
         cbs = [c for c in ins.tabs.currentWidget().findChildren(QComboBox) if c.isVisible()]
-        assert cbs and all(c.width() <= c.sizeHint().width() + 2 for c in cbs), [(c.width(), c.sizeHint().width()) for c in cbs]
+        fits = lambda c: c.width() <= min(c.fontMetrics().horizontalAdvance(c.currentText()),
+                                          c.fontMetrics().averageCharWidth() * 40) + 70
+        assert cbs and all(fits(c) for c in cbs), [(c.width(), c.currentText()) for c in cbs]
         assert all(c.width() < 500 for c in cbs)
+        # larghezza dinamica: segue la voce scelta
+        shape = next(c for c in cbs if c.count() > 1 and not c.isEditable())
+        widths = set()
+        for k in range(shape.count()):
+            shape.setCurrentIndex(k)
+            assert fits(shape), (shape.width(), shape.currentText())
+            widths.add(shape.width())
+        assert len(widths) > 1
+        # raggruppate a sinistra: nella scheda Base «Ritardo» sta subito dopo la tendina «Avvio»
+        ins.tabs.setCurrentIndex(ins._tab_keys.index("Base"))
+        run(0.2)
+        base = ins.tabs.currentWidget()
+        trig = next(c for c in base.findChildren(QComboBox) if c.isVisible() and c.findData("with_prev") >= 0)
+        lab = next(l for l in base.findChildren(QLabel) if l.isVisible() and l.text() == tr("Ritardo"))
+        gap = lab.mapTo(base, lab.rect().topLeft()).x() - trig.mapTo(base, trig.rect().topRight()).x()
+        assert 0 <= gap < 40 and lab.width() < 120, (gap, lab.width())
         bar = w.findChildren(_BarScroll)[0]
         assert bar.horizontalScrollBar().maximum() == 0, bar.horizontalScrollBar().maximum()
         shown = QLabel.text(w.standby)
