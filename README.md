@@ -513,6 +513,10 @@ paused or stopped one by one. Next to the bar of each cue with audio there is a 
 cues, two for stereo and multichannel; scale −60…0 dBFS, green / yellow above −9 dB / red above −1 dB): it
 measures the cue's audio with level, fades, live trim and master volume.
 
+**Moving through a cue**: in the Active cues panel (also in its separate window) drag the cursor of an audio,
+video, image or PDF cue along its bar: while you drag the cue is suspended and the bar shows the chosen time;
+when you release it the cue goes on from there (if it was paused, it stays paused at the new point).
+
 **Active cues panel options**: the **⚙** button sets the **row size** (compact, normal, large, very large — for
 a console screen seen from far away) and the filters **Hide groups** (their cues are still shown) and **Only
 audio, video, images, PDF and texts**. **⧉** detaches the panel into a **separate window** (e.g. on the second

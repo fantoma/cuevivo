@@ -3950,7 +3950,7 @@ def t_marker_jumps(w):
         assert abs(lvl() + 20.0) < 0.1                   # suonando ripassa dal marker: si riapplica
         w.ctrl.restart_from(a, 5.0)                      # da fermo/avanti: stato ricostruito, nessuna cue
         run(0.3)
-        assert fired == [] and abs(lvl() + 20.0) < 0.1
+        assert fired == [] and abs(lvl() + 20.0) < 0.1, (fired, lvl(), inst.position(), inst._mk_applied)
         w.ctrl.restart_from(a, 8.0)                      # proprio sul marker: quello scatta
         assert wait_until(lambda: fired == ["11"], 2), fired
         fired.clear()
@@ -5143,6 +5143,48 @@ def t_long_names(w):
         w.show_data.dirty = False
 
 
+def t_active_scrub(w):
+    """Cue attive: trascinando il cursore della barra la cue si sospende, al rilascio riprende dal punto scelto
+    (se era in pausa resta in pausa)."""
+    from PySide6.QtCore import QPoint, Qt
+    from PySide6.QtTest import QTest
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    a = tone("scrub.wav", 8)
+    c = Cue("audio", number="1", name="Scrub", file=a)
+    sh.cues[:] = [c]
+    w._set_show(sh)
+    w.loader.audio_now(a)
+    run(0.2)
+    w.set_active_view(scale_index=1)
+    try:
+        w.ctrl.start_cue(c)
+        inst = w.ctrl.instances[c.id]
+        assert wait_until(lambda: inst.position() > 0.3, 5)
+        w.active.repaint()
+        bar = w.active.bars[0][0]
+        at = lambda f: QPoint(int(bar.left() + bar.width() * f), int(bar.center().y()))
+        QTest.mousePress(w.active, Qt.LeftButton, Qt.NoModifier, at(0.5))
+        run(0.1)
+        assert inst.paused, "durante il trascinamento la cue è sospesa"
+        p0 = inst.position()
+        QTest.mouseMove(w.active, at(0.75))
+        run(0.3)
+        assert inst.paused and abs(inst.position() - p0) < 0.05 and abs(w.active._scrub["t"] - 6.0) < 0.2
+        QTest.mouseRelease(w.active, Qt.LeftButton, Qt.NoModifier, at(0.75))
+        run(0.3)
+        assert not inst.paused and inst.position() > 5.7, inst.position()
+        w.ctrl.pause_cue(c.id, True)                        # già in pausa: dopo il salto resta in pausa
+        w.active.repaint()
+        QTest.mousePress(w.active, Qt.LeftButton, Qt.NoModifier, at(0.25))
+        QTest.mouseRelease(w.active, Qt.LeftButton, Qt.NoModifier, at(0.25))
+        run(0.3)
+        assert inst.paused and abs(inst.position() - 2.0) < 0.3, inst.position()
+    finally:
+        w.ctrl.stop_all(0)
+        run(0.2)
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -6112,6 +6154,7 @@ if __name__ == "__main__":
     check("Copie precedenti dello show: salvataggi, limite, ripresa", lambda: t_snapshots(w))
     check("Cue attive per i programmi OSC (Script Follower): abbonamento, stato, filtri, stop e pausa", lambda: t_active_feed(w))
     check("Nomi lunghi a 1366 px: la finestra non si allarga (puntini)", lambda: t_long_names(w))
+    check("Cue attive: trascinare il cursore sospende la cue e riprende dal punto scelto", lambda: t_active_scrub(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

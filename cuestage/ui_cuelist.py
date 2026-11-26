@@ -2,7 +2,7 @@
 from .i18n import tr
 import json
 
-from PySide6.QtCore import QAbstractTableModel, QEvent, QMimeData, QModelIndex, QRectF, Qt, Signal, QTimer
+from PySide6.QtCore import QAbstractTableModel, QEvent, QMimeData, QModelIndex, QPointF, QRectF, Qt, Signal, QTimer
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QPainter, QPen
 from PySide6.QtWidgets import QStyledItemDelegate, QStyle, QTableView, QWidget
 
@@ -766,6 +766,7 @@ class ActivePanel(QWidget):
         self.bars = []
         self.scale = 1.0            # dimensione delle righe
         self.hide_groups = False    # filtro: niente gruppi (si vedono le loro cue)
+        self._scrub = None          # trascinamento del cursore: {cid, bar, ax, t, was_paused}
         self.only_media = False     # filtro: solo audio, video, immagini, PDF e testi
 
     def set_view(self, scale=None, hide_groups=None, only_media=None):
@@ -876,9 +877,18 @@ class ActivePanel(QWidget):
                 if data is not None:
                     from .markers import paint_bar
                     ax, marks, pos = data
+                    sc = self._scrub
+                    if sc is not None and sc["cid"] == cue.id:
+                        pos = sc["t"]                 # trascinamento in corso: il cursore segue il mouse
                     paint_bar(p, bar, ax, marks, pos, col)
-                    self.bars.append((bar, ax, marks))
+                    if sc is not None and sc["cid"] == cue.id:
+                        p.setPen(QPen(QColor(255, 255, 255), 2))
+                        xx = bar.left() + bar.width() * min(1.0, pos / max(1e-6, ax.length))
+                        p.drawLine(QPointF(xx, bar.top() - 3), QPointF(xx, bar.bottom() + 3))
+                    self.bars.append((bar, ax, marks, cue.id))
                     p.setPen(QColor(200, 200, 210))
+                    if sc is not None and sc["cid"] == cue.id:
+                        right_txt = "⇥ " + fmt_time(sc["t"])
                     p.drawText(QRectF(r.left() + 8, r.top() + 2, r.width() - 92, 18),
                                Qt.AlignRight | Qt.AlignVCenter, right_txt)
                 elif prog is not None:
@@ -925,7 +935,15 @@ class ActivePanel(QWidget):
             if badge.contains(pos):
                 QToolTip.showText(e.globalPosition().toPoint(), tr("Lista «{0}» · clic per mostrarla", name), self)
                 return
-        for bar, ax, marks in getattr(self, "bars", []):
+        sc = self._scrub
+        if sc is not None:
+            sc["t"] = self._bar_time(sc["bar"], sc["ax"], pos.x())
+            QToolTip.showText(e.globalPosition().toPoint(), fmt_time(sc["t"]), self)
+            self.update()
+            return
+        on_bar = any(b[0].adjusted(0, -3, 0, 3).contains(pos) for b in getattr(self, "bars", []))
+        self.setCursor(Qt.SizeHorCursor if on_bar else Qt.ArrowCursor)
+        for bar, ax, marks, _cid in getattr(self, "bars", []):
             if bar.adjusted(0, -3, 0, 3).contains(pos):
                 txt = marks_tooltip(marks, ax, (pos.x() - bar.left()) / max(1, bar.width()) * ax.length,
                                     bar.width())
@@ -934,8 +952,38 @@ class ActivePanel(QWidget):
                     return
         QToolTip.hideText()
 
+    @staticmethod
+    def _bar_time(bar, ax, x):
+        """Tempo della cue corrispondente alla posizione x sulla barra."""
+        return max(0.0, min(1.0, (x - bar.left()) / max(1.0, bar.width()))) * ax.length
+
+    def mouseReleaseEvent(self, e):
+        """Fine del trascinamento: la cue riprende dal punto scelto (resta in pausa se lo era già)."""
+        sc, self._scrub = self._scrub, None
+        if sc is None:
+            return super().mouseReleaseEvent(e)
+        cue = self.ctrl.show.by_id(sc["cid"]) if hasattr(self.ctrl.show, "by_id") else None
+        inst = self.ctrl.instances.get(sc["cid"])
+        if cue is not None and inst is not None and not inst.done:
+            self.ctrl.restart_from(cue, sc["t"])
+            if sc["was_paused"]:
+                self.ctrl.pause_cue(sc["cid"], True)
+        self.update()
+
     def mousePressEvent(self, e):
         pos = e.position() / self.scale
+        if e.button() == Qt.LeftButton:
+            for bar, ax, _marks, cid in getattr(self, "bars", []):
+                inst = self.ctrl.instances.get(cid)
+                if bar.adjusted(0, -3, 0, 3).contains(pos) and inst is not None and not inst.done \
+                        and not getattr(inst, "_closing", False):
+                    # trascinamento del cursore: la cue si sospende finché non si rilascia
+                    self._scrub = {"cid": cid, "bar": QRectF(bar), "ax": ax, "was_paused": bool(inst.paused),
+                                   "t": self._bar_time(bar, ax, pos.x())}
+                    if not inst.paused:
+                        self.ctrl.pause_cue(cid, True)
+                    self.update()
+                    return
         for badge, cid, _name in getattr(self, "badges", []):
             if badge.contains(pos):
                 self.showCueRequested.emit(cid)
