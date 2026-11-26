@@ -180,7 +180,31 @@ def drag_image(n, copy=False, with_hand=False):
 
 
 class CueTableView(QTableView):
-    """Tabella delle cue: durante il trascinamento il cursore è una manina (con «+» se Ctrl duplica)."""
+    """Tabella delle cue: durante il trascinamento il cursore è una manina (con «+» se Ctrl duplica).
+    Le colonne stanno sempre nella larghezza visibile: se non entrano si stringono Nome e File/Target."""
+
+    STATE_MIN = 110          # spazio minimo per la barra di avanzamento della colonna Stato
+    SHRINK = ((C_NAME, 120), (C_TARGET, 80))      # colonne che si stringono (fino a questa larghezza)
+
+    def fit_columns(self):
+        hh = self.horizontalHeader()
+        avail = self.viewport().width()
+        if avail <= 0:
+            return
+        fixed = sum(self.columnWidth(c) for c in range(hh.count())
+                    if c != C_STATE and not self.isColumnHidden(c))
+        over = fixed + self.STATE_MIN - avail
+        for col, low in self.SHRINK:
+            if over <= 0:
+                break
+            cut = min(over, max(0, self.columnWidth(col) - low))
+            if cut > 0:
+                self.setColumnWidth(col, self.columnWidth(col) - cut)
+                over -= cut
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        self.fit_columns()
 
     def startDrag(self, actions):
         from PySide6.QtGui import QDrag

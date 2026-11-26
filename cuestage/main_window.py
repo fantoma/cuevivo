@@ -470,9 +470,11 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         self.table.setColumnHidden(C_PFL, True)          # compare quando il preascolto è configurato
         hh = self.table.horizontalHeader()
         # tutte le colonne si ridimensionano trascinando il bordo dell'intestazione (doppio clic: larghezza del
-        # contenuto); l'ultima riempie lo spazio rimasto. Le larghezze restano tra un avvio e l'altro.
+        # contenuto); «Stato» riempie lo spazio rimasto (senza mai allargare la tabella oltre la finestra). Le
+        # larghezze restano tra un avvio e l'altro.
         hh.setSectionResizeMode(QHeaderView.Interactive)
-        hh.setStretchLastSection(True)
+        hh.setStretchLastSection(False)
+        hh.setSectionResizeMode(C_STATE, QHeaderView.Stretch)
         hh.setMinimumSectionSize(24)
         widths = [30, 50, 125, 300, 220, 70, 70, 110, 190, 50]
         saved = self.qs.value("cuelist_widths")
@@ -481,6 +483,8 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         except (TypeError, ValueError):
             saved = []
         for col, w in enumerate(widths):
+            if col == C_STATE:
+                continue                       # si adatta da sola allo spazio che resta
             self.table.setColumnWidth(col, saved[col] if col < len(saved) and saved[col] >= 24 else w)
 
         def save_widths(*_a):

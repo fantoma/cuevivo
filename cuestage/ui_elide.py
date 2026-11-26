@@ -4,7 +4,7 @@ from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import QComboBox, QLabel, QSizePolicy
 
 MAX_HINT = 420          # larghezza «desiderata» massima di un'etichetta (px): oltre, si tronca con «…»
-COMBO_CHARS = 40        # caratteri massimi visibili nella voce scelta di un menu a tendina (oltre: troncata)
+COMBO_CHARS = 32        # caratteri massimi visibili nella voce scelta di un menu a tendina (oltre: troncata)
 
 
 class ElidedLabel(QLabel):
@@ -102,10 +102,11 @@ def _pack_left(layout):
             if layout.stretch(i) > 0 or sp.expandingDirections() & Qt.Horizontal:
                 return                         # c'è già uno spazio elastico
             continue                           # spaziatura fissa
-        if layout.stretch(i) > 0 and (it.layout() is not None or
-                                      (wd is not None and wd.sizePolicy().horizontalPolicy() != QSizePolicy.Fixed)):
+        grows = wd is not None and wd.sizePolicy().horizontalPolicy() != QSizePolicy.Fixed \
+            and wd.maximumWidth() >= QWIDGETSIZE_MAX       # un campo con larghezza massima non prende tutto
+        if layout.stretch(i) > 0 and (it.layout() is not None or grows):
             return                             # c'è già chi prende lo spazio in più
-        if wd is not None and wd.sizePolicy().horizontalPolicy() in (
+        if grows and wd.sizePolicy().horizontalPolicy() in (
                 QSizePolicy.Expanding, QSizePolicy.MinimumExpanding, QSizePolicy.Ignored):
             return
     layout.setProperty("_packed", True)
@@ -128,10 +129,47 @@ def _layout_of(widget):
     return None
 
 
+QWIDGETSIZE_MAX = 16777215
+FIELD_MIN, FIELD_MAX = 160, 560     # campi di testo: larghezza secondo il contenuto/l'esempio, entro questi limiti
+SPIN_MIN, SPIN_MAX = 56, 200
+
+
+def fit_field(wd):
+    """Campi di testo e numerici non più larghi del necessario (non riempiono la riga). Un campo con la
+    proprietà «_wide» (es. il percorso del file) resta largo."""
+    from PySide6.QtWidgets import QAbstractSpinBox, QLineEdit
+    if wd.property("_wide") or wd.property("_fitw") or wd.maximumWidth() < QWIDGETSIZE_MAX:
+        return False                           # larghezza già decisa da chi l'ha creato
+    if isinstance(wd, QAbstractSpinBox):
+        wd.setFixedWidth(max(SPIN_MIN, min(SPIN_MAX, wd.sizeHint().width())))
+    elif isinstance(wd, QLineEdit):
+        if isinstance(wd.parentWidget(), (QComboBox, QAbstractSpinBox)):
+            return False                       # il campo interno di una tendina o di uno spin
+
+        def refit(*_):
+            fm = wd.fontMetrics()
+            sample = max((wd.text(), wd.placeholderText()), key=len)
+            wd.setFixedWidth(max(FIELD_MIN, min(FIELD_MAX, fm.horizontalAdvance(sample) + 28)))
+        refit()
+        wd.textChanged.connect(refit)          # segue il testo mentre si scrive (nome, percorso…)
+    else:
+        return False
+    wd.setProperty("_fitw", True)
+    return True
+
+
 def tame_combos(widget):
-    """Menu a tendina del widget larghi quanto la voce scelta, raggruppati a sinistra nelle loro righe."""
-    for cb in widget.findChildren(QComboBox):
+    """Tendine larghe quanto la voce scelta, campi di testo e numerici non più larghi del necessario, tutti
+    raggruppati a sinistra nelle loro righe."""
+    from PySide6.QtWidgets import QAbstractSpinBox, QLineEdit
+    done = set()
+    items = list(widget.findChildren(QComboBox))
+    for cb in items:
         fit_combo(cb)
-        lay = _layout_of(cb)
-        if lay is not None:
+    items += [x for x in widget.findChildren(QLineEdit) if fit_field(x)]
+    items += [x for x in widget.findChildren(QAbstractSpinBox) if fit_field(x)]
+    for wd in items:
+        lay = _layout_of(wd)
+        if lay is not None and id(lay) not in done:
+            done.add(id(lay))
             _pack_left(lay)

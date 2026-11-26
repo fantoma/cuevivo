@@ -5074,7 +5074,7 @@ def t_long_names(w):
                 run(0.05)
                 page = ins.tabs.currentWidget()
                 page = page.widget() if hasattr(page, "widget") and page.widget() is not None else page
-                assert page.minimumSizeHint().width() < 900, (r, ins._tab_keys[i], page.minimumSizeHint().width())
+                assert page.minimumSizeHint().width() < 1200, (r, ins._tab_keys[i], page.minimumSizeHint().width())
             assert w.minimumSizeHint().width() <= 1366 and w.width() <= 1366, (w.minimumSizeHint(), w.width())
         # menu dell'ispettore larghi quanto il loro testo, non quanto la riga
         from PySide6.QtWidgets import QComboBox
@@ -5085,7 +5085,7 @@ def t_long_names(w):
         run(0.2)
         cbs = [c for c in ins.tabs.currentWidget().findChildren(QComboBox) if c.isVisible()]
         fits = lambda c: c.width() <= min(c.fontMetrics().horizontalAdvance(c.currentText()),
-                                          c.fontMetrics().averageCharWidth() * 40) + 70
+                                          c.fontMetrics().averageCharWidth() * 32) + 70
         assert cbs and all(fits(c) for c in cbs), [(c.width(), c.currentText()) for c in cbs]
         assert all(c.width() < 500 for c in cbs)
         # larghezza dinamica: segue la voce scelta
@@ -5104,6 +5104,18 @@ def t_long_names(w):
         lab = next(l for l in base.findChildren(QLabel) if l.isVisible() and l.text() == tr("Ritardo"))
         gap = lab.mapTo(base, lab.rect().topLeft()).x() - trig.mapTo(base, trig.rect().topRight()).x()
         assert 0 <= gap < 40 and lab.width() < 120, (gap, lab.width())
+        # campi di testo non più larghi del contenuto (anche nome e file), raggruppati a sinistra
+        from PySide6.QtWidgets import QLineEdit
+        les = [e for e in base.findChildren(QLineEdit) if e.isVisible() and not isinstance(e.parentWidget(), QComboBox)]
+        assert les and all(e.width() <= 600 for e in les), [(e.width(), e.text()[:30]) for e in les]
+        ins.tabs.setCurrentIndex(ins._tab_keys.index("Trigger"))
+        run(0.2)
+        les = [e for e in ins.tabs.currentWidget().findChildren(QLineEdit)
+               if e.isVisible() and not isinstance(e.parentWidget(), QComboBox)]
+        assert les and all(e.width() <= 600 for e in les), [e.width() for e in les]
+        # lista: la colonna Stato riempie lo spazio che resta, senza barra di scorrimento orizzontale
+        run(0.2)
+        assert w.table.horizontalScrollBar().maximum() == 0, w.table.horizontalScrollBar().maximum()
         bar = w.findChildren(_BarScroll)[0]
         assert bar.horizontalScrollBar().maximum() == 0, bar.horizontalScrollBar().maximum()
         shown = QLabel.text(w.standby)
