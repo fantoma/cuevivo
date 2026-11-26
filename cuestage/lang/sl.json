@@ -2029,7 +2029,7 @@
   "Marker a cui la cue si sposta prima di fermarsi": "Marker, na katerega se cue premakne, preden se ustavi",
   "riprende col ▶ delle cue attive": "nadaljuje z ▶ v aktivnih cue",
   "riprende col GO principale": "nadaljuje z glavnim GO",
-  "Come riparte la cue ferma sul marker:\n▶ delle cue attive: col pulsante della cue nel pannello «Cue attive»\nGO principale: il prossimo GO fa ripartire la cue (invece di mandare la cue successiva); mentre la cue suona il GO manda la cue successiva come sempre": "Kako se cue, ustavljena na markerju, nadaljuje:\n▶ v aktivnih cue: z gumbom cue v podoknu »Aktivne cue«\nGlavni GO: naslednji GO nadaljuje cue (namesto da pošlje naslednjo cue); medtem ko cue igra, GO kot običajno pošlje naslednjo cue",
+  "Come riparte la cue ferma sul marker:\n▶ delle cue attive: col pulsante della cue nel pannello «Cue attive»\nGO principale: il prossimo GO fa ripartire la cue (invece di mandare la cue successiva); mentre la cue suona il GO manda la cue successiva come sempre. Il ▶ delle cue attive la fa ripartire in tutti e due i casi": "Kako se cue, ustavljena na markerju, nadaljuje:\n▶ v aktivnih cue: z gumbom cue v podoknu »Aktivne cue«\nGlavni GO: naslednji GO nadaljuje cue (namesto da pošlje naslednjo cue); medtem ko cue igra, GO kot običajno pošlje naslednjo cue. ▶ v aktivnih cue jo nadaljuje v obeh primerih",
   "Elimina marker": "Izbriši oznako",
   "{0} (non presente)": "{0} (ni na voljo)",
   "dopo il marker": "po oznaki",

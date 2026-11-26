@@ -445,6 +445,10 @@ class KeyframeMixin:
     def _tick_markers(self):
         """Azioni dei marker dell'utente (Recall Preset, Call Cue…) quando la riproduzione li supera."""
         self.marker_hold = None                          # sta suonando: non è più ferma su un marker
+        dest = getattr(self, "_mk_dest", None)
+        if dest is not None:                             # ripartita dopo «vai al marker»: azione della destinazione
+            self._mk_dest = None
+            self._marker_action(dest)
         ms = getattr(self.cue, "markers", None)
         if not ms or self.cue.type not in ("audio", "video"):
             return
@@ -502,6 +506,8 @@ class KeyframeMixin:
         punto di partenza e quello di arrivo non scattano (né in avanti né indietro), e lo stato dei Recall
         Preset si ricostruisce come se la cue avesse suonato fino a lì. file_pos: posizione del file attesa.
         applied: il salto è già avvenuto (audio nel motore): lo stato si ricostruisce subito."""
+        if not getattr(self, "_mk_skip_arrival", False):
+            self._mk_dest = None                   # spostata altrove a mano: l'azione in attesa della destinazione decade
         if file_pos is None:
             try:
                 file_pos = float(self.position())
@@ -599,8 +605,8 @@ class KeyframeMixin:
 
     def _marker_pause(self, m):
         """«Pause Cue» (e «Pause Cue e vai al marker»): la cue si ferma (dopo essersi spostata sul marker scelto,
-        che esegue subito la sua azione: Recall Preset, Call Cue, Stop Cue; una sua pausa coincide con questa);
-        riparte col ▶ delle cue attive oppure, con «riprende col GO», col GO principale."""
+        che esegue la sua azione — Recall Preset, Call Cue, Stop Cue — quando la cue riparte; una sua pausa
+        coincide con questa); riparte col ▶ delle cue attive oppure, con «riprende col GO», col GO principale."""
         from .markers import find_marker
         c = self.cue
         if m.get("action") == "pause_goto":
@@ -613,11 +619,9 @@ class KeyframeMixin:
                 self.seek_to(max(0.0, t_file - float(c.start or 0)))
                 if self._mk_jump is None:                  # audio: il salto è già avvenuto
                     self._mk_skip_arrival = False
-                    self._mk_pos = t_file + 0.0005          # alla ripresa non riscatta: la sua azione è qui sotto
-                if (tg.get("action") or "none") not in ("pause", "pause_goto", "none"):
-                    self._marker_action(tg)
-                    if tg.get("action") == "stop" and not tg.get("target"):
-                        return                              # ferma proprio questa cue: niente pausa
+                    self._mk_pos = t_file + 0.0005          # non riscatta da solo: la sua azione è qui sotto
+                # l'azione della destinazione parte quando la cue riparte (una pausa coinciderebbe con questa)
+                self._mk_dest = tg if (tg.get("action") or "none") not in ("pause", "pause_goto", "none") else None
         self.pause(True)
         self.marker_hold = "go" if m.get("resume") == "go" else "active"
         self.ctrl.message.emit(tr("«{0}» in pausa al marker «{1}»: {2}", c.label(), m.get("name") or "M",

@@ -1048,11 +1048,12 @@ and audio keyframes (light blue ◆; hollow = “base”).
 - **Marker actions** (column “Action” of the marker list): **Recall Preset**, **Call Cue**, **Stop Cue**,
   **Pause Cue** (the cue stops at the marker) and **Pause Cue and go to marker** (the cue moves to the chosen
   marker of the same cue and stops there; the destination marker's own action — Recall Preset, Call Cue, Stop
-  Cue — runs on arrival, not again on resume). Marker times are shown as minutes:seconds (seconds can be typed
+  Cue — runs once, when the cue resumes). Marker times are shown as minutes:seconds (seconds can be typed
   too). A
   paused cue resumes either with its **▶ in the Active cues** panel, or — with “resumes with the main GO” — with
   the **main GO**: while the cue is held, GO resumes it instead of sending the next cue (the standby shows
-  “⏸ cue: GO = resume”); while the cue plays, GO sends the next cue as usual.
+  “⏸ cue: GO = resume”); while the cue plays, GO sends the next cue as usual. The ▶ in the Active cues panel
+  resumes it in both cases.
 - **Moving the playback**: the white play line of the waveform can be dragged while the cue plays, like the cursor
   of the Active cues bars: the cue is suspended while dragging and resumes from the new point on release (the
   Active cues bar also shows the absolute file time, “⇥ 01:23.4 · file 01:33.40”).

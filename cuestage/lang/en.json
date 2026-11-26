@@ -2029,7 +2029,7 @@
   "Marker a cui la cue si sposta prima di fermarsi": "Marker the cue moves to before stopping",
   "riprende col ▶ delle cue attive": "resumes with ▶ in the active cues",
   "riprende col GO principale": "resumes with the main GO",
-  "Come riparte la cue ferma sul marker:\n▶ delle cue attive: col pulsante della cue nel pannello «Cue attive»\nGO principale: il prossimo GO fa ripartire la cue (invece di mandare la cue successiva); mentre la cue suona il GO manda la cue successiva come sempre": "How the cue stopped at the marker resumes:\n▶ in the active cues: with the cue's button in the “Active cues” panel\nMain GO: the next GO resumes the cue (instead of sending the next cue); while the cue plays GO sends the next cue as usual",
+  "Come riparte la cue ferma sul marker:\n▶ delle cue attive: col pulsante della cue nel pannello «Cue attive»\nGO principale: il prossimo GO fa ripartire la cue (invece di mandare la cue successiva); mentre la cue suona il GO manda la cue successiva come sempre. Il ▶ delle cue attive la fa ripartire in tutti e due i casi": "How the cue stopped at the marker resumes:\n▶ in the active cues: with the cue's button in the “Active cues” panel\nMain GO: the next GO resumes the cue (instead of sending the next cue); while the cue plays GO sends the next cue as usual. The ▶ in the active cues resumes it in both cases",
   "Elimina marker": "Delete marker",
   "{0} (non presente)": "{0} (missing)",
   "dopo il marker": "after the marker",

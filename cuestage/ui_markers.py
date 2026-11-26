@@ -280,7 +280,8 @@ class MarkersPanel(QWidget):
         resume.setToolTip(tr("Come riparte la cue ferma sul marker:\n"
                              "▶ delle cue attive: col pulsante della cue nel pannello «Cue attive»\n"
                              "GO principale: il prossimo GO fa ripartire la cue (invece di mandare la cue "
-                             "successiva); mentre la cue suona il GO manda la cue successiva come sempre"))
+                             "successiva); mentre la cue suona il GO manda la cue successiva come sempre. "
+                             "Il ▶ delle cue attive la fa ripartire in tutti e due i casi"))
         resume.currentIndexChanged.connect(lambda i: (m.__setitem__("resume", resume.itemData(i)), self.changed.emit()))
         ph.addWidget(pre)
         ph.addWidget(tgt)

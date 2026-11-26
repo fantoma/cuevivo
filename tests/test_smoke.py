@@ -5219,8 +5219,8 @@ def t_active_scrub(w):
 
 def t_marker_pause(w):
     """Marker «Pause Cue» (riprende col ▶ delle cue attive) e «Pause Cue e vai al marker» (riprende col GO
-    principale): la cue si ferma, il marker di destinazione esegue la sua azione all'arrivo (e non di nuovo alla
-    ripresa), il GO la fa ripartire invece di mandare la cue successiva; poi il GO torna normale."""
+    principale): la cue si ferma, il marker di destinazione esegue la sua azione quando la cue riparte (una
+    volta sola), il GO la fa ripartire invece di mandare la cue successiva; poi il GO torna normale."""
     from PySide6.QtCore import Qt
     from cuestage.i18n import tr
     sh = Show()
@@ -5247,18 +5247,28 @@ def t_marker_pause(w):
         assert wait_until(lambda: inst.paused and inst.marker_hold == "go", 4)
         assert abs(inst.position() - 5.0) < 0.2, inst.position()           # spostata sul marker C
         run(0.3)
-        assert nxt.id in w.ctrl.instances                    # il marker di destinazione esegue la sua azione
-        w.ctrl.stop_cue(nxt.id, 0.0)
-        run(0.2)
+        assert nxt.id not in w.ctrl.instances                # l'azione della destinazione aspetta la ripresa
         w._update_standby()
         assert w.standby.text() == tr("⏸ {0}: GO = riprendi", c.label())
         w.go()                                               # il GO riprende la cue, non manda la successiva
         run(0.3)
         assert not inst.paused and inst.marker_hold is None and after.id not in w.ctrl.instances
-        assert inst.position() > 5.1 and nxt.id not in w.ctrl.instances     # alla ripresa C non riscatta
+        assert inst.position() > 5.1 and nxt.id in w.ctrl.instances     # alla ripresa C esegue la sua azione
+        w.ctrl.stop_cue(nxt.id, 0.0)
+        run(0.3)
+        assert nxt.id not in w.ctrl.instances                # una volta sola
         w.go()                                               # mentre suona: GO normale
         run(0.2)
         assert after.id in w.ctrl.instances
+        # «riprende col GO principale»: riparte anche col ▶ delle cue attive
+        w.ctrl.restart_from(c, 1.6)
+        assert wait_until(lambda: inst.paused and inst.marker_hold == "go", 4)
+        w._toggle_pause_cue(c.id)                            # ▶ nel pannello delle cue attive
+        run(0.3)
+
+        assert not inst.paused and inst.marker_hold is None and w.ctrl.marker_held() is None, \
+            (inst.paused, inst.marker_hold, w.ctrl.marker_held())
+        assert nxt.id in w.ctrl.instances                    # anche così la destinazione esegue la sua azione
         # editor dei marker con le nuove azioni
         w._select_row(0)
         ins = w.inspector
