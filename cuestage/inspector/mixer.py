@@ -411,7 +411,7 @@ class MixerTabMixin:
         mc.currentIndexChanged.connect(mixer_changed)
         f.addRow(tr("Mixer"), mc)
         if not mixers:
-            lab = QLabel(tr("Nessun mixer configurato: Impostazioni › Mixer… (con ricerca in rete)"))
+            lab = QLabel(tr("Nessun mixer configurato: Periferiche › Mixer… (con ricerca in rete)"))
             lab.setStyleSheet("color:#e0b040;")
             f.addRow(lab)
             return w
@@ -504,7 +504,7 @@ class MixerTabMixin:
                 hint = QLabel(tr("Finché la cue è attiva i fader seguono la curva del ducking: «livello normale» "
                               "quando nessuno parla, «livello normale − riduzione» quando l'ingresso del "
                               "ducking supera la soglia. STOP sgancia i fader e li riporta al livello normale. "
-                              "Ingresso, soglia e tempi: Impostazioni › Ducking…"))
+                              "Ingresso, soglia e tempi: Audio › Ducking…"))
                 hint.setWordWrap(True)
                 hint.setStyleSheet("color:#999;")
                 f.addRow(hint)

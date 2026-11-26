@@ -41,6 +41,11 @@ class ProjectorsDialog(QDialog):
             b.clicked.connect(fn)
             bl.addWidget(b)
         left.addLayout(bl)
+        self.search_btn = QPushButton(tr("🔍 Cerca proiettori in rete"))
+        self.search_btn.setToolTip(tr("Cerca i proiettori PJLink nella rete locale (ricerca PJLink classe 2 e "
+                                      "porta 4352 aperta) e li aggiunge all'elenco"))
+        self.search_btn.clicked.connect(self._search)
+        left.addWidget(self.search_btn)
         h.addLayout(left, 1)
 
         right = QVBoxLayout()
@@ -210,6 +215,74 @@ class ProjectorsDialog(QDialog):
                            "driver": did, "host": "", "port": cls.DEFAULT_PORT if cls else 4352,
                            "user": "", "password": "", "proj_id": ""})
         self._fill_list(len(self.items) - 1)
+
+    def _search(self):
+        """Ricerca in rete (in un thread): i proiettori trovati e non ancora in elenco si scelgono da aggiungere."""
+        import threading
+        from PySide6.QtCore import QEventLoop, QTimer
+        self.search_btn.setEnabled(False)
+        self.search_btn.setText(tr("Ricerca in corso…"))
+        box = {}
+        th = threading.Thread(target=lambda: box.update(r=self._discover_fn()), daemon=True)
+        th.start()
+        loop = QEventLoop()
+        t = QTimer()
+        t.timeout.connect(lambda: (not th.is_alive()) and loop.quit())
+        t.start(50)
+        loop.exec()
+        t.stop()
+        self.search_btn.setEnabled(True)
+        self.search_btn.setText(tr("🔍 Cerca proiettori in rete"))
+        known = {(p.get("host") or "").strip() for p in self.items}
+        found = [r for r in box.get("r") or [] if r["host"] not in known]
+        if not found:
+            self.result.setPlainText(tr("Nessun proiettore nuovo trovato in rete (PJLink, porta 4352)."))
+            return []
+        picked = self._pick_found(found)
+        for r in picked:
+            self.items.append({"id": uuid.uuid4().hex[:8], "name": r.get("name") or tr("Proiettore {0}", r["host"]),
+                               "driver": "pjlink", "host": r["host"], "port": 4352, "user": "", "password": "",
+                               "proj_id": ""})
+        if picked:
+            self._fill_list(len(self.items) - 1)
+            self.result.setPlainText(tr("Aggiunti {0} proiettori (driver PJLink): controlla nome e password.",
+                                        len(picked)))
+        return picked
+
+    @staticmethod
+    def _discover_fn():
+        from ..projectors import discover_pjlink
+        return discover_pjlink()
+
+    def _pick_found(self, found):
+        """Finestra con i proiettori trovati da spuntare. Restituisce quelli scelti."""
+        from PySide6.QtWidgets import QCheckBox, QDialogButtonBox as BB
+        d = QDialog(self)
+        d.setWindowTitle(tr("Proiettori trovati"))
+        lay = QVBoxLayout(d)
+        checks = []
+        for r in found:
+            bits = [r["host"]]
+            if r.get("name"):
+                bits.append(f"«{r['name']}»")
+            if r.get("mac"):
+                bits.append(r["mac"])
+            if r.get("auth"):
+                bits.append(tr("con password"))
+            cb = QCheckBox(" · ".join(bits))
+            cb.setChecked(True)
+            lay.addWidget(cb)
+            checks.append((cb, r))
+        bb = BB(BB.Ok | BB.Cancel)
+        bb.accepted.connect(d.accept)
+        bb.rejected.connect(d.reject)
+        lay.addWidget(bb)
+        if self._auto_pick is not None:
+            return [r for cb, r in checks if self._auto_pick(r)]
+        if d.exec() != QDialog.Accepted:
+            return []
+        return [r for cb, r in checks if cb.isChecked()]
+    _auto_pick = None            # per le prove: funzione(r) -> bool al posto della finestra
 
     def _dup(self):
         if self.cur is None:

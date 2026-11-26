@@ -558,7 +558,7 @@ class MidiOut:
         if mido is None:
             raise RuntimeError(tr("mido/python-rtmidi non installati"))
         if not name:
-            raise RuntimeError(tr("nessuna uscita MIDI scelta (cue o Impostazioni › MIDI)"))
+            raise RuntimeError(tr("nessuna uscita MIDI scelta (cue o Audio › Audio, OSC e MIDI › MIDI)"))
         names = self.list_ports()
         real = MidiInput.resolve(name, names)
         if real is None:

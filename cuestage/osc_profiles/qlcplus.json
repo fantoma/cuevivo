@@ -1,0 +1,33 @@
+{
+  "id": "qlcplus",
+  "name": "QLC+",
+  "port": 7700,
+  "discover": {"type": "artnet", "match": ["qlc"]},
+  "notes": "In QLC+: Ingressi/Uscite › universo 1 › riga OSC, spunta «Ingresso» (porta di ricezione 7700 per l'universo 1, 7701 per il 2…; l'indirizzo è quello del computer di QLC+). Poi in Virtual Console, proprietà del widget (pulsante, slider, cue list) › Ingresso esterno › «Rilevamento automatico» e da Cuevivo «Prova» la cue OSC: QLC+ impara l'indirizzo. I valori vanno da 0.0 a 1.0 (QLC+ li porta a 0–255): un pulsante si preme con 1.0 e si rilascia con 0.0. La ricerca in rete usa Art-Net (ArtPoll): l'uscita Art-Net di QLC+ deve essere attiva.",
+  "commands": [
+    {"id": "button", "label": "Pulsante: premi", "address": "/{path}", "args": ["1.0"],
+     "params": [{"id": "path", "label": "Indirizzo (senza / iniziale)", "type": "text", "default": "cuevivo/1"}],
+     "help": "Preme il pulsante della Virtual Console associato all'indirizzo (valore 1.0)."},
+    {"id": "button_release", "label": "Pulsante: rilascia", "address": "/{path}", "args": ["0.0"],
+     "params": [{"id": "path", "label": "Indirizzo (senza / iniziale)", "type": "text", "default": "cuevivo/1"}],
+     "help": "Rilascia il pulsante (valore 0.0): serve per i pulsanti in modalità «Flash»."},
+    {"id": "slider", "label": "Slider / fader: livello", "address": "/{path}", "args": ["{level}"],
+     "params": [{"id": "path", "label": "Indirizzo (senza / iniziale)", "type": "text", "default": "cuevivo/fader1"},
+                {"id": "level", "label": "Livello (0–1)", "type": "float", "min": 0, "max": 1, "decimals": 2,
+                 "default": 1.0, "force_float": true}],
+     "help": "Porta lo slider al livello indicato (0 = in basso, 1 = in alto)."},
+    {"id": "cuelist_next", "label": "Cue list: GO (cue successiva)", "address": "/{list}/next", "args": ["1.0"],
+     "params": [{"id": "list", "label": "Cue list (indirizzo base)", "type": "text", "default": "cuelist1"}],
+     "help": "Ingresso esterno «Cue successiva» della cue list della Virtual Console."},
+    {"id": "cuelist_prev", "label": "Cue list: cue precedente", "address": "/{list}/previous", "args": ["1.0"],
+     "params": [{"id": "list", "label": "Cue list (indirizzo base)", "type": "text", "default": "cuelist1"}]},
+    {"id": "cuelist_play", "label": "Cue list: play / pausa", "address": "/{list}/play", "args": ["1.0"],
+     "params": [{"id": "list", "label": "Cue list (indirizzo base)", "type": "text", "default": "cuelist1"}]},
+    {"id": "cuelist_stop", "label": "Cue list: stop", "address": "/{list}/stop", "args": ["1.0"],
+     "params": [{"id": "list", "label": "Cue list (indirizzo base)", "type": "text", "default": "cuelist1"}]},
+    {"id": "custom", "label": "Messaggio libero (valore)", "address": "/{path}", "args": ["{value}"],
+     "params": [{"id": "path", "label": "Indirizzo (senza / iniziale)", "type": "text", "default": "cuevivo/1"},
+                {"id": "value", "label": "Valore (0–1)", "type": "float", "min": 0, "max": 1, "decimals": 3,
+                 "default": 1.0, "force_float": true}]}
+  ]
+}

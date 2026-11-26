@@ -36,7 +36,7 @@ def _midi_names(output):
 class MixersDialog(QDialog):
     def __init__(self, mixers, manager, parent=None, switchers=False):
         super().__init__(parent)
-        self.sw = bool(switchers)          # True = regie video (Impostazioni › Regie video…)
+        self.sw = bool(switchers)          # True = regie video (Periferiche › Regie video…)
         self.setWindowTitle(tr("Regie video") if self.sw else tr("Mixer"))
         self.mm = manager
         self.items = copy.deepcopy(mixers or [])

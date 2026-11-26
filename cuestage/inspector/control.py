@@ -636,8 +636,8 @@ class ControlTabsMixin:
                 f.addRow(n)
         else:
             if not devs:
-                tip = QLabel(tr("Per console e software con profilo (es. ChamSys MagicQ): Impostazioni › OSC › "
-                             "Dispositivi OSC › Aggiungi da profilo…"))
+                tip = QLabel(tr("Per console e software con profilo (es. ChamSys MagicQ, QLC+): Audio › Audio, OSC e MIDI › OSC › "
+                             "Dispositivi OSC in uscita › Aggiungi da profilo…"))
                 tip.setWordWrap(True)
                 tip.setStyleSheet("color:#888;")
                 f.addRow(tip)
@@ -680,7 +680,7 @@ class ControlTabsMixin:
         v.addLayout(f)
         b = bus_by_id(sh, cue.bus_target)
         if b is None:
-            lab = QLabel(tr("Scegli il bus da controllare (i bus si creano in Impostazioni › Bus effetti)."))
+            lab = QLabel(tr("Scegli il bus da controllare (i bus si creano in Audio › Bus effetti)."))
             lab.setWordWrap(True)
             lab.setStyleSheet("color:#e0b040;")
             v.addWidget(lab)

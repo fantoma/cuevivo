@@ -35,7 +35,7 @@ class ProjectorTabMixin:
         pc.currentIndexChanged.connect(proj_changed)
         f.addRow(tr("Proiettore"), pc)
         if not projs:
-            lab = QLabel(tr("Nessun proiettore configurato: Impostazioni › Proiettori…"))
+            lab = QLabel(tr("Nessun proiettore configurato: Periferiche › Proiettori…"))
             lab.setStyleSheet("color:#e0b040;")
             f.addRow(lab)
             return w

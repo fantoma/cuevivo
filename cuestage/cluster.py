@@ -1,6 +1,6 @@
 """Istanze secondarie: master / slave e ridondanza.
 
-Una istanza MASTER (Impostazioni › Istanze: «Abilita istanze secondarie») apre una porta TCP; un'istanza che
+Una istanza MASTER (Istanze › Istanze secondarie: «Abilita istanze secondarie») apre una porta TCP; un'istanza che
 «diventa slave» si collega, il master chiede conferma, poi lo slave scarica lo show e i file multimediali
 (tutti o solo quelli mancanti/diversi) e riceve subito ogni modifica del progetto.
 Il master manda un heartbeat ogni 100 ms: se lo slave non lo sente più può essere promosso a master.

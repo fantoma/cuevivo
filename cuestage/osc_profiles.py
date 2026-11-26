@@ -42,6 +42,77 @@ def profiles(reload=False):
     return out
 
 
+def is_builtin(profile_id):
+    """Il profilo viene dai profili forniti con Cuevivo (e non è stato ridefinito dall'utente)."""
+    return os.path.isfile(os.path.join(BUILTIN_DIR, f"{profile_id}.json")) and \
+        not os.path.isfile(user_path(profile_id))
+
+
+def user_path(profile_id):
+    return os.path.join(USER_DIR, f"{profile_id}.json")
+
+
+PARAM_TYPES = ("int", "float", "enum", "text")
+
+
+def validate(p):
+    """Errori di un profilo (lista vuota = valido): id, nome, comandi con id/etichetta/indirizzo, parametri usati
+    negli indirizzi e negli argomenti che esistono, tipi noti, voci delle scelte."""
+    import re
+    errs = []
+    if not re.fullmatch(r"[a-z0-9_]+", str(p.get("id") or "")):
+        errs.append(tr("Id del profilo: solo lettere minuscole, cifre e «_»"))
+    if not str(p.get("name") or "").strip():
+        errs.append(tr("Il profilo non ha un nome"))
+    cmds = p.get("commands") or []
+    if not cmds:
+        errs.append(tr("Il profilo non ha comandi"))
+    seen = set()
+    for c in cmds:
+        cid = str(c.get("id") or "")
+        lab = c.get("label") or cid or "?"
+        if not re.fullmatch(r"[A-Za-z0-9_]+", cid):
+            errs.append(tr("Comando «{0}»: id non valido (lettere, cifre, «_»)", lab))
+        elif cid in seen:
+            errs.append(tr("Comando «{0}»: id ripetuto", cid))
+        seen.add(cid)
+        if not str(c.get("label") or "").strip():
+            errs.append(tr("Comando «{0}»: manca l'etichetta", cid))
+        if not str(c.get("address") or "").startswith("/"):
+            errs.append(tr("Comando «{0}»: l'indirizzo deve iniziare con /", lab))
+        pids = set()
+        for prm in c.get("params") or []:
+            pid = str(prm.get("id") or "")
+            if not re.fullmatch(r"[A-Za-z0-9_]+", pid):
+                errs.append(tr("Comando «{0}»: parametro con id non valido", lab))
+            if prm.get("type") not in PARAM_TYPES:
+                errs.append(tr("Comando «{0}», parametro «{1}»: tipo non valido", lab, pid))
+            if prm.get("type") == "enum" and not prm.get("items"):
+                errs.append(tr("Comando «{0}», parametro «{1}»: una scelta senza voci", lab, pid))
+            pids.add(pid)
+        used = set(re.findall(r"{(\w+)}", " ".join([str(c.get("address") or "")] + [str(a) for a in c.get("args") or []])))
+        for u in sorted(used - pids):
+            errs.append(tr("Comando «{0}»: {{{1}}} non è un parametro", lab, u))
+    return errs
+
+
+def save_user(p):
+    """Salva il profilo tra quelli dell'utente (sostituisce un profilo fornito con lo stesso id)."""
+    os.makedirs(USER_DIR, exist_ok=True)
+    with open(user_path(p["id"]), "w", encoding="utf-8") as f:
+        json.dump(p, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    profiles(reload=True)
+
+
+def delete_user(profile_id):
+    try:
+        os.remove(user_path(profile_id))
+    except OSError:
+        pass
+    profiles(reload=True)
+
+
 def command(profile_id, cmd_id):
     p = profiles().get(profile_id)
     if not p:
@@ -57,7 +128,10 @@ def _fmt(v, param):
     if t == "int":
         return str(int(float(v)))
     if t == "float":
-        return f"{float(v):g}"
+        s = f"{float(v):g}"
+        if param.get("force_float") and not any(ch in s for ch in ".en"):
+            s += ".0"                         # «1.0»: argomento OSC float anche per i valori interi
+        return s
     return str(v)
 
 
@@ -75,7 +149,8 @@ def render(profile_id, cmd_id, values):
     if c is None:
         raise KeyError(tr("comando «{0}» non presente nel profilo «{1}»", cmd_id, profile_id))
     vals = param_values(c, values)
-    address = c["address"].format(**vals)
+    import re
+    address = re.sub(r"/{2,}", "/", c["address"].format(**vals))     # «/{path}» con un percorso che inizia con /
     args = " ".join(a.format(**vals) for a in c.get("args") or [])
     return address, args
 

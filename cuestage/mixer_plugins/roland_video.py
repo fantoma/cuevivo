@@ -1,4 +1,4 @@
-"""Plugin Cuevivo — regie video Roland V-8HD e V-1HD, via MIDI (USB): Impostazioni › Regie video, cue «Regia video».
+"""Plugin Cuevivo — regie video Roland V-8HD e V-1HD, via MIDI (USB): Periferiche › Regie video, cue «Regia video».
 
 Collegamento: cavo USB dal computer alla regia; la regia compare come porta MIDI (su Linux: «amidi -l»).
 

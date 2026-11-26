@@ -723,10 +723,21 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         self.sublang_menu = m.addMenu(tr("Lingua dei sottotitoli di questa istanza"))
         self.sublang_menu.aboutToShow.connect(self._fill_sublang)
 
-        m = mb.addMenu(tr("&Impostazioni"))
+        m = mb.addMenu(tr("Au&dio"))
         add(m, tr("Audio, OSC e MIDI…"), self.settings_dialog, "Ctrl+,")
         add(m, tr("Bus effetti (riverbero, delay…)…"), self.bus_dialog)
         add(m, tr("Ducking…"), self.ducking_dialog)
+
+        m = mb.addMenu(tr("I&stanze"))
+        add(m, tr("WEB control…"), lambda: self.settings_dialog(("web",), tr("WEB control")))
+        add(m, tr("Istanze secondarie…"), lambda: self.settings_dialog(("instances",), tr("Istanze secondarie")))
+        m.addSeparator()
+        add(m, tr("Diventa slave…"), self.become_slave)
+        self.act_leave = add(m, tr("Esci dalla modalità slave (diventa indipendente)"), self.cluster_promote)
+        self.act_leave.setEnabled(False)
+        add(m, tr("Istanze e messaggi…"), self._cluster_clicked, "Ctrl+M")
+
+        m = mb.addMenu(tr("&Periferiche"))
         add(m, tr("Proiettori…"), self.projectors_dialog)
         add(m, tr("Pannello proiettori"), self.toggle_projector_panel, "F9")
         m.addSeparator()
@@ -735,17 +746,13 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         m.addSeparator()
         add(m, tr("Regie video…"), self.switchers_dialog)
         add(m, tr("Pannello regie video"), self.toggle_switcher_panel, "F11")
-        m.addSeparator()
-        add(m, tr("Diventa slave…"), self.become_slave)
-        self.act_leave = add(m, tr("Esci dalla modalità slave (diventa indipendente)"), self.cluster_promote)
-        self.act_leave.setEnabled(False)
-        add(m, tr("Istanze e messaggi…"), self._cluster_clicked, "Ctrl+M")
-        m.addSeparator()
+
         from . import i18n
-        lm = m.addMenu(tr("Lingua") + ("" if i18n.language() == "en" else " / Language"))
+        lm = mb.addMenu(tr("&Lingue") + ("" if i18n.language() == "en" else " / Languages"))
         from PySide6.QtGui import QActionGroup
         grp = QActionGroup(self)
-        for code, name in sorted(i18n.available().items(), key=lambda x: x[1].lower()):
+        order = {"it": 0, "en": 1, "sl": 2}
+        for code, name in sorted(i18n.available().items(), key=lambda x: (order.get(x[0], 9), x[1].lower())):
             a = QAction(name, self, checkable=True)
             a.setChecked(code == i18n.language())
             a.triggered.connect(lambda _=False, code=code: self._choose_language(code))
@@ -893,9 +900,11 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
             s["web_enabled"] = False
         return ok
 
-    def settings_dialog(self):
+    def settings_dialog(self, only=("audio", "osc", "midi"), title=None):
+        """Impostazioni: di serie Audio, OSC e MIDI (menu Audio); only=("web",) e only=("instances",) per
+        «WEB control» e «Istanze secondarie» del menu Istanze."""
         d = SettingsDialog(self.show_data.settings, self.learn_midi, self, rescan_fn=self._rescan_audio,
-                           web_fn=self._web_switch)
+                           web_fn=self._web_switch, only=only, title=title or tr("Audio, OSC e MIDI"))
         if d.exec():
             old = dict(self.show_data.settings)
             self.show_data.settings = d.result_settings()
@@ -921,7 +930,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         if self.inspector.cue is cue:
             self.inspector.set_cue(cue)
         if cue.pfl and not self.audio.preview.get("enabled"):
-            self.status(tr("Preascolto non configurato: Impostazioni › Audio, OSC e MIDI › Preascolto"))
+            self.status(tr("Preascolto non configurato: Audio › Audio, OSC e MIDI › Preascolto"))
         else:
             self.status(tr("PFL {0}: {1}", tr('acceso') if cue.pfl else tr('spento'), cue.label()))
 
@@ -968,7 +977,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         recent = self._underrun_note()
         parts = [self.audio.status]
         if recent:
-            parts.insert(0, tr("⚠ {0} buchi audio (underrun) negli ultimi 10 s: aumenta il buffer in Impostazioni › Audio", recent))
+            parts.insert(0, tr("⚠ {0} buchi audio (underrun) negli ultimi 10 s: aumenta il buffer in Audio › Audio, OSC e MIDI › Audio", recent))
         parts.append(tr("OSC :{0}", self.osc.port) if self.osc.port else tr("OSC off"))
         n = len(self.midi.ports)
         parts.append(tr("MIDI off") if not n else (tr("MIDI on") if n == 1 else tr("MIDI {0} schede", n)))
@@ -1193,7 +1202,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         self.set_ducking(cfg)
         d = self.audio.duck
         if on and cfg["master_db"] <= 0:
-            self.status(tr("Duck acceso ma il Master ducking è a 0 dB: impostalo in Impostazioni › Ducking…"))
+            self.status(tr("Duck acceso ma il Master ducking è a 0 dB: impostalo in Audio › Ducking…"))
         elif on and d.error:
             self.status(tr("Ducking: {0}", d.error))
         else:
@@ -1211,7 +1220,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
             self.dim_btn.setChecked(on)
             self.dim_btn.blockSignals(False)
         if on and cfg["master_db"] <= 0:
-            self.status(tr("DIM acceso ma la riduzione del master è 0 dB: impostala in Impostazioni › Ducking…"))
+            self.status(tr("DIM acceso ma la riduzione del master è 0 dB: impostala in Audio › Ducking…"))
         else:
             self.status(tr("DIM {0} (master −{1:.1f} dB)", tr('acceso') if on else tr('spento'), cfg['master_db']))
 
@@ -1248,7 +1257,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
                                    f"border-radius:6px;padding:0 10px;}}")
         db = float(d.cfg.get("master_db") or 0)
         why = {"on": "acceso", "warn": tr("acceso ma la riduzione è 0 dB"), "off": "spento"}[look]
-        self.dim_btn.setToolTip(tr("DIM: abbassa l'uscita master di {0:.1f} dB (la riduzione del Master ducking) — {1}. Anche da MIDI (Impostazioni › MIDI) e OSC (/dim). Tasto destro: impostazioni del ducking.", db, why))
+        self.dim_btn.setToolTip(tr("DIM: abbassa l'uscita master di {0:.1f} dB (la riduzione del Master ducking) — {1}. Anche da MIDI (Audio › Audio, OSC e MIDI › MIDI) e OSC (/dim). Tasto destro: impostazioni del ducking.", db, why))
 
     COMPACT_W = 1300
 

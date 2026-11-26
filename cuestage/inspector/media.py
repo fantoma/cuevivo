@@ -32,7 +32,7 @@ class MediaTabsMixin:
         h.setContentsMargins(0, 0, 0, 0)
         sp = self._dspin("duck_db", 0, 60, 1, 1, " dB", special=tr("nessuno"))
         sp.setToolTip(tr("Di quanti dB si abbassa questa cue quando l'ingresso del ducking supera la soglia "
-                      "(Impostazioni › Ducking…). ") + (tr("Vale per tutte le cue del gruppo che non hanno un "
+                      "(Audio › Ducking…). ") + (tr("Vale per tutte le cue del gruppo che non hanno un "
                                                       "ducking proprio.") if cue.type == "group" else
                                                       tr("Se è «nessuno» vale quello del gruppo che la contiene.")))
         h.addWidget(sp)

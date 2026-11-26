@@ -71,7 +71,7 @@ def duck_tooltip(inst, ctrl):
     db = inst.duck_db
     return {"duck": tr("Ducking: sta intervenendo (−{0:.1f} dB)", db),
             "on": tr("Ducking: −{0:.1f} dB quando l'ingresso supera la soglia", db),
-            "idle": tr("Ducking −{0:.1f} dB impostato, ma il ducking è spento (Impostazioni › Ducking…)", db)}[st]
+            "idle": tr("Ducking −{0:.1f} dB impostato, ma il ducking è spento (Audio › Ducking…)", db)}[st]
 
 
 def paint_pfl(p, bar, inst, left=True):

@@ -384,7 +384,7 @@ class MixerDriver:
     NAMES = False
     # controlli generici (schede audio: interruttori, menu, volumi): CONTROLS = True e i metodi qui sotto
     CONTROLS = False
-    # regia video (es. Roland V-8HD): configurata in Impostazioni › Regie video e comandata dalle cue
+    # regia video (es. Roland V-8HD): configurata in Periferiche › Regie video e comandata dalle cue
     # «Regia video» invece che dal pannello e dalle cue Mixer
     SWITCHER = False
 

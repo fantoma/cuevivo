@@ -5,7 +5,7 @@ quella dei dati utente) traducono ogni testo italiano: {"_meta": {"name": "Engli
 "traduzione"}}. I testi con parti variabili usano {0}, {1}… (con l'eventuale formato, es. {0:.1f}), da
 lasciare nella traduzione; l'ordine può cambiare. Un testo senza traduzione resta in italiano.
 
-La lingua si sceglie in Impostazioni › Lingua e vale dal riavvio successivo (è salvata nelle preferenze del
+La lingua si sceglie in Lingue e vale dal riavvio successivo (è salvata nelle preferenze del
 computer, non nello show).
 """
 from .appinfo import settings as _app_settings

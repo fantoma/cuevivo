@@ -314,6 +314,91 @@ class PJLinkDriver(ProjectorDriver):
         return st
 
 
+def pjlink_info(host, port=4352, timeout=1.0):
+    """Saluto PJLink di un host: {"auth": serve la password, "name": nome del proiettore (se libero)} o None."""
+    try:
+        s = socket.create_connection((host, port), timeout=timeout)
+    except OSError:
+        return None
+    try:
+        s.settimeout(timeout)
+        greet = s.recv(64).decode("ascii", "replace").strip()
+        if not greet.startswith("PJLINK"):
+            return None
+        parts = greet.split()
+        if len(parts) >= 2 and parts[1] == "1":
+            return {"auth": True, "name": ""}
+        name = ""
+        try:
+            s.sendall(b"%1NAME ?\r")
+            resp = s.recv(256).decode("utf-8", "replace").strip()
+            if resp.upper().startswith("%1NAME=") and not resp.upper().startswith("%1NAME=ERR"):
+                name = resp.split("=", 1)[1].strip()
+        except OSError:
+            pass
+        return {"auth": False, "name": name}
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+
+def discover_pjlink(timeout=1.5, port=4352):
+    """Proiettori PJLink in rete: ricerca della classe 2 (%2SRCH in broadcast, risposta %2ACKN con il MAC) più
+    una scansione delle reti /24 locali sulla porta 4352 (classe 1). [{host, mac, name, auth}] in ordine di IP."""
+    import ipaddress
+    from concurrent.futures import ThreadPoolExecutor
+    from .mixers import broadcast_addresses, tcp_scan
+    from .webserver import local_addresses
+    ips = [ip for ip in local_addresses() if not ip.startswith("127.")]
+    found = {}
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            s.bind(("0.0.0.0", port))         # le risposte %2ACKN arrivano sulla porta 4352
+        except OSError:
+            s.bind(("0.0.0.0", 0))
+        for b in broadcast_addresses(ips):
+            try:
+                s.sendto(b"%2SRCH\r", (b, port))
+            except OSError:
+                pass
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            s.settimeout(max(0.05, end - time.monotonic()))
+            try:
+                data, (ip, _p) = s.recvfrom(512)
+            except OSError:
+                break
+            txt = data.decode("ascii", "replace").strip()
+            if txt.upper().startswith("%2ACKN=") and ip not in ips:
+                found[ip] = {"host": ip, "mac": txt.split("=", 1)[1].strip()}
+    finally:
+        s.close()
+    if ips:
+        for h in tcp_scan(ips, port):
+            found.setdefault(h, {"host": h, "mac": ""})
+    hosts = list(found)
+    with ThreadPoolExecutor(max_workers=16) as ex:
+        infos = list(ex.map(lambda h: pjlink_info(h, port), hosts))
+    out = []
+    for h, info in zip(hosts, infos):
+        if info is None and not found[h]["mac"]:
+            continue                          # porta aperta ma non è un proiettore PJLink
+        r = dict(found[h])
+        r.update(info or {"auth": False, "name": ""})
+        out.append(r)
+
+    def key(r):
+        try:
+            return tuple(int(p) for p in ipaddress.ip_address(r["host"]).packed)
+        except ValueError:
+            return (999,)
+    return sorted(out, key=key)
+
+
 # ------------------------------------------------------------------ plugin
 
 class PluginRegistry:

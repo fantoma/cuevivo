@@ -1,6 +1,6 @@
 """Ritorno MIDI (feedback) verso i controller: anelli LED, fader motorizzati e LED dei pulsanti.
 
-Per ogni scheda MIDI in ingresso si può indicare una «porta di ritorno» (Impostazioni › MIDI, filtri della
+Per ogni scheda MIDI in ingresso si può indicare una «porta di ritorno» (Audio › Audio, OSC e MIDI › MIDI, filtri della
 scheda): Cuevivo le manda il valore attuale di ogni controllo mappato su quella scheda, così il controller
 mostra lo stato vero anche quando i valori cambiano da Cuevivo (mouse, fade, cue, altra istanza):
 

@@ -1,4 +1,4 @@
-"""Finestra Impostazioni › Ducking: ingresso, canale, vumeter, gate, attacco/rilascio e Master ducking."""
+"""Finestra Audio › Ducking: ingresso, canale, vumeter, gate, attacco/rilascio e Master ducking."""
 from .i18n import tr
 import copy
 
@@ -210,7 +210,7 @@ class DuckingDialog(QDialog):
         self.to_pv.setChecked(bool(cfg["to_preview"]))
         pv = self.mw.audio.preview
         self.to_pv_note.setText("" if pv.get("enabled") else
-                                tr("Il preascolto non è configurato: Impostazioni › Audio, OSC e MIDI › Preascolto."))
+                                tr("Il preascolto non è configurato: Audio › Audio, OSC e MIDI › Preascolto."))
         self._loading = False
         self.duck.configure(cfg, monitor=True)        # in ascolto per il vumeter anche se è spento
         self._tick()

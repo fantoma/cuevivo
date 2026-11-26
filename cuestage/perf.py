@@ -158,7 +158,7 @@ def bench_disk(mb=48):
 
 
 def buffer_key(n):
-    """Voce di Impostazioni › Audio › Buffer audio con blocco di n campioni (e la sua coda in ms)."""
+    """Voce di Audio › Audio, OSC e MIDI › Audio › Buffer audio con blocco di n campioni (e la sua coda in ms)."""
     from .audio_engine import BUFFERS as PRESETS
     for k, (blk, lat) in PRESETS.items():
         if blk == n:
@@ -219,7 +219,7 @@ def summary(r):
         out.append(tr("Buffer audio consigliato: {0} campioni ({1:.1f} ms; servono almeno {2:.1f} ms)",
                       n, n / SR * 1000, need))
         from .audio_engine import BUFFER_LABELS
-        out.append(tr("In Impostazioni › Audio › Buffer audio: «{0}»", BUFFER_LABELS[buffer_key(n)[0]]))
+        out.append(tr("In Audio › Audio, OSC e MIDI › Audio › Buffer audio: «{0}»", BUFFER_LABELS[buffer_key(n)[0]]))
     return out
 
 

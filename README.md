@@ -106,7 +106,7 @@ raises the minimum.
 
 ## Interface language
 
-**Settings › Language**: Italiano, English, slovenščina. The choice belongs to the computer (not the show)
+**Languages** menu: Italiano, English, slovenščina. The choice belongs to the computer (not the show)
 and applies when Cuevivo is **restarted**. On the first start Cuevivo uses the system language if it is
 available, otherwise English. For a quick test: `CUEVIVO_LANG=en ./run.sh`.
 
@@ -360,7 +360,7 @@ The text is drawn on the video output, above (or below, with the **layer**) the 
 ## “MIDI out” cue
 
 Sends arbitrary MIDI messages, one per line, on the MIDI output chosen in the cue or on the default one
-(Settings › MIDI › MIDI output). The syntax check is immediate and points to the wrong line.
+(Audio › Audio, OSC and MIDI › MIDI › MIDI output). The syntax check is immediate and points to the wrong line.
 
     note 1 C4 100        Note On (channel, note or number, velocity)   · off 1 C4   Note Off
     cc 1 7 127           Control Change          · pc 1 5         Program Change
@@ -477,7 +477,7 @@ Under the list, the inspector of the selected cue has these tabs (each cue type 
   kept), **Browse…** and **Open folder**; **Start**, **Delay** and **Colour** on one row; **Notes**.
 - **Trigger**: MIDI trigger, MIDI volume and transparency faders, OSC trigger, keyboard shortcut, and **events**
   that start the cue: **Ducking above threshold (active)** / **Ducking below threshold (inactive)** — when the
-  ducking input (Settings › Ducking) starts or stops receiving signal (after the hold; the input stays open while a
+  ducking input (Audio › Ducking) starts or stops receiving signal (after the hold; the input stays open while a
   cue uses these events) — and **Slave behaviour: Lost master** / **Promoted to master** — on a secondary instance,
   when the master stops answering or when the instance becomes independent (see “Secondary instances”).
 - **Times and loop** (audio, video): waveform with IN/OUT, loop, volume, fades and curve, keyframe timeline;
@@ -800,7 +800,7 @@ All the audio handling of an audio or video cue is in the inspector's **Audio** 
   locks to the audio (realigned if it drifts by more than 150 ms, loops included). Alternatively “System player”:
   default card, stereo, no matrix.
 
-In **Settings** you choose the project's default card and the **channels used for each card**: “auto” = all the
+In **Audio › Audio, OSC and MIDI › Audio** you choose the project's default card and the **channels used for each card**: “auto” = all the
 channels for hardware cards (`hw:`), 2 for virtual devices (`default`, `pipewire`, `pulse`…), which always
 declare many channels even when they are stereo. “Rescan connected cards” is for a USB card plugged in after
 start-up. If a chosen card is not connected, the cue plays through the default one and a warning says so.
@@ -815,7 +815,7 @@ use the `pipewire` device setting its channels (e.g. 8); or close the other audi
 ### Sound card control panel (Focusrite Scarlett and others)
 
 The functions that on Windows/macOS are set with the manufacturer's program (e.g. **Focusrite Control**) are ALSA
-mixer controls on Linux, exposed by the kernel driver. In **Settings › Mixers and sound cards…** the search finds
+mixer controls on Linux, exposed by the kernel driver. In **Devices › Mixers and sound cards…** the search finds
 the connected cards:
 - **Focusrite Scarlett / Clarett** (“scarlett2” driver, kernel 6.7 or later; Gen 2/3 with kernels between 5.14
   and 6.6: `echo "options snd_usb_audio device_setup=1" | sudo tee /etc/modprobe.d/scarlett.conf` and reboot):
@@ -839,7 +839,7 @@ kernel version: Cuevivo reads them from the card.
 
 An audio input (e.g. the announcer's microphone) automatically lowers the cues while someone is speaking.
 
-- **Settings › Ducking…** (also with a right-click on the “Duck” button or with “Settings…” in the inspector):
+- **Audio › Ducking…** (also with a right-click on the “Duck” button or with “Settings…” in the inspector):
   - **input card** and **channel**;
   - input **meter** with the threshold (white line), the gate LED and how much reduction is applied;
   - **gate**: only the **threshold** (dBFS); above the threshold the ducking acts;
@@ -862,7 +862,7 @@ An audio input (e.g. the announcer's microphone) automatically lowers the cues w
   effect (0 dB reduction or input not available).
 - **“DIM” button** under “Duck”: immediately lowers the master output by the Master ducking reduction and keeps
   it there until you turn it off (no microphone needed). Orange = on, amber = on but with 0 dB reduction. With
-  Duck and DIM on together the reductions do not add up. It can also be controlled from **MIDI** (Settings ›
+  Duck and DIM on together the reductions do not add up. It can also be controlled from **MIDI** (Audio › Audio, OSC and MIDI ›
   MIDI › “DIM on / off” and “Duck on / off”) and from **OSC**: `/dim` toggles, `/dim 1` turns on, `/dim 0` turns
   off; the same for `/duck`. Right-click on Duck or DIM: ducking settings.
 - **Microphone icon** in the progress bar (list, active cues, GRID tiles) of cues with ducking: **green** = ready,
@@ -878,7 +878,7 @@ An audio input (e.g. the announcer's microphone) automatically lowers the cues w
 
 ### Preview (headphones)
 
-- **Settings › Audio, OSC and MIDI › Preview**: “Enable preview”, the **card** and the **2 channels** (left and
+- **Audio › Audio, OSC and MIDI › Preview**: “Enable preview”, the **card** and the **2 channels** (left and
   right) of the operator's headphones. It can be another card or two free channels of the same one (“Project
   default card” = the one chosen at the top as default card).
 - **PFL button**: the list has the **PFL** column (it appears only with the preview on) and in the GRID a **PFL**
@@ -895,7 +895,7 @@ An audio input (e.g. the announcer's microphone) automatically lowers the cues w
 ### Audio buffer and “underruns”
 
 An *underrun* is a small gap in the audio: the card asked for the next block before the computer had it ready
-(it happens mostly with video on the output or with a busy computer). In **Settings › Audio › Audio buffer** you
+(it happens mostly with video on the output or with a busy computer). In **Audio › Audio, OSC and MIDI › Audio › Audio buffer** you
 choose the size: *Minimum latency* 128 samples (~12 ms), *Very low latency* 256 (~25 ms), *Low latency* 512 (~50 ms),
 *Normal* 1024 (~120 ms, default), *Safe* 2048 (~250 ms), *Maximum safety* 4096 (~500 ms). The first number is the
 block that Cuevivo computes each time, the second the queue in front of the card (the card's latency shown in
@@ -969,7 +969,7 @@ send only the effect to the PA.
   point widens or narrows the band (Q); behind the curve an **RTA** shows the spectrum of the EQ's input (1/6
   octave). **Gate** and **compressor** show their **transfer curve** (input → output level, with threshold, knee
   and the current working point) and the **input, gain-reduction and output meters**.
-- **Effect buses** (Settings › **Effect buses (reverb, delay…)…**, or “Effect buses…” in the Effects tab): each bus
+- **Effect buses** (Audio › **Effect buses (reverb, delay…)…**, or “Effect buses…” in the Effects tab): each bus
   has a name, a sound card, a return level and mute, its own **rack** (gate, EQ, compressor, **delay** and
   **reverb**) and an **output matrix** like the cues' (stereo bus L/R × card outputs).
 - **Sends**: in the Effects tab each cue sends part of its sound to the buses with a **horizontal fader** per bus
@@ -1064,8 +1064,10 @@ and audio keyframes (light blue ◆; hollow = “base”).
 
 ## Network video projectors
 
-**Settings › Projectors…**: list of projectors with name, driver, IP, port and credentials; “Test connection”
-reads the state (power, shutter, input). **Projector** cues choose a projector and an action; commands run in one
+**Devices › Projectors…**: list of projectors with name, driver, IP, port and credentials; “Test connection”
+reads the state (power, shutter, input). **🔍 Search for projectors on the network** finds the PJLink projectors
+of the local networks (PJLink class 2 search, plus the projectors with port 4352 open), with their name when
+no password is needed: tick the ones to add (driver PJLink; then set name and password). **Projector** cues choose a projector and an action; commands run in one
 thread per projector (in order, without blocking the show) and the result appears in the status bar. “Send now”
 tries them from the inspector.
 
@@ -1082,7 +1084,7 @@ driver/plugin provides**:
 
 Under each box appears the result of the last command (green = done, red = error). Even with the panel in front,
 Space = GO, Esc = STOP ALL, F7 and F8 stay active; it closes with ✕ or by pressing the button again. The panel also
-opens and closes with **F9** or from **Settings › Projector panel** (with no projectors configured it opens their
+opens and closes with **F9** or from **Devices › Projector panel** (with no projectors configured it opens their
 configuration).
 
 ### 4-corner geometric correction
@@ -1175,7 +1177,7 @@ advance**: file open and paused on the first frame to show. On GO it starts imme
 
 ## Digital mixers
 
-**Settings › Mixers…**: list of mixers, with **🔍 Search for mixers on the network**, which finds on its own:
+**Devices › Mixers…**: list of mixers, with **🔍 Search for mixers on the network**, which finds on its own:
 - **Behringer X32 / Midas M32** — OSC on UDP 10023 (answer to “/xinfo”: name, model, firmware);
 - **Behringer WING** — “WING?” on UDP 2222, OSC commands on 2223;
 - **Behringer X Air XR12 / XR16 / XR18, Midas MR18** — “/xinfo” on UDP 10024 (the model too);
@@ -1243,7 +1245,7 @@ mixers are added with a plugin (see `cuestage/mixer_plugins/LEGGIMI.md`).
 
 Video switchers have their own settings, panel and cue type, separate from the mixers.
 
-- **Settings › Video switchers…**: add the switcher (driver “Roland V-8HD” or “Roland V-1HD”), connect it to the
+- **Devices › Video switchers…**: add the switcher (driver “Roland V-8HD” or “Roland V-1HD”), connect it to the
   computer with the USB cable and choose its MIDI port (on Linux check that it appears with `amidi -l`).
   “Test connection” opens the port.
 - **◧ Switchers ▾** button at the top (or **F11**, also in the Settings menu): a tab per switcher with all its
@@ -1272,7 +1274,7 @@ Commands:
   its own (version 5 greets with a Hello, 4.x does not) and the commands are the same; with 4.x the *Cut to*
   command recognises the “Cut” transition by its default name (Cut, Taglio, Schnitt…) and otherwise makes the
   current transition as short as possible. OBS can run on the
-  same computer (address `localhost`) or on another one: **🔍 Search for switchers on the network** (in Settings ›
+  same computer (address `localhost`) or on another one: **🔍 Search for switchers on the network** (in Devices ›
   Video switchers…) tries ports 4455 and 4444 on the local /24 networks and on **this computer** (localhost, IPv4 and IPv6, and
   its own addresses — also with no network connected) and recognises OBS from its answer (version, password
   required or not); OBS on this computer is listed as “OBS on this computer” with address `localhost`. Scenes, sources and inputs are read from OBS and commands refer to
@@ -1308,7 +1310,7 @@ Mixer cues become Video switcher cues). Other switchers can be added as plugins 
 
 ## Secondary instances: master, slave and redundancy
 
-**On the master** (Settings › Audio, OSC and MIDI › **Instances**): “Enable secondary instances”, TCP port
+**On the master** (Instances › **Secondary instances…**): “Enable secondary instances”, TCP port
 (default 53900; the next port, UDP, is used for discovery) and instance name. Each connection request must be
 **accepted** in a confirmation window. For a **slave** the master chooses what it gets: the **whole project** or
 **only some lists** (MAIN, PANELs, GRIDs), each as **Control only** (it runs the cues) or **Edit** (it can also change
@@ -1317,7 +1319,7 @@ only their files, and only the active version; its inspector works only on the l
 takes from it only the changes to those lists (any other local change is overwritten by the master's next update).
 Redundancy always receives the whole project.
 
-**On the other computer**: Settings › **Become slave…**
+**On the other computer**: Instances › **Become slave…**
 - search for masters on the network (or address and port typed by hand);
 - **Slave** mode (always up-to-date copy of the project, does not run the master's cues) or **Redundancy** (runs
   exactly the same cues triggered by the master);
@@ -1359,7 +1361,7 @@ connected to a live master it does not send them (an **orange** notice above the
 “⚠ Redundancy: external commands held”), so devices do not receive everything twice. They start again from the
 redundant instance as soon as the master is lost, or when it is promoted or disconnected.
 
-**Secondaries can update the project** (option on the master, Settings › Instances): with the option on the
+**Secondaries can update the project** (option on the master, Instances › Secondary instances): with the option on the
 secondaries' editor is unlocked and each of their changes (cues, lists, settings if copied) reaches the master
 within about half a second and from there all the other secondaries. New files added on a secondary are sent to
 the master and saved in the `da_slave` folder next to the show (never overwriting existing files). On the master
@@ -1368,7 +1370,7 @@ arrives wins. Without the option the secondaries' editor stays locked; in the in
 that editing is allowed.
 
 **Heartbeat**: the master sends one every 100 ms. If a secondary does not hear it for the chosen time (default
-500 ms) or the connection drops, the status bar turns red: a click (or Settings › “Leave slave mode”) **promotes**
+500 ms) or the connection drops, the status bar turns red: a click (or Instances › “Leave slave mode”) **promotes**
 it: it becomes independent, the running cues continue, and if it has secondary instances enabled it becomes a
 master in turn. At the same time a **flashing red band** appears at the top of the window (“⚠ LOST MASTER: … is not
 responding”) with **Promote now** and **OK**: it keeps flashing until OK is pressed (if the master comes back it
@@ -1377,7 +1379,7 @@ stops flashing but stays until it is confirmed). With “promote automatically�
 connection, also during the first download. Files are sent in 64 KB blocks on a separate channel, with heartbeats
 and redundancy commands always going first, so long transfers on slow networks do not drop the connection.
 
-**Instances and messages** (Settings › “Instances and messages…”, Ctrl+M, or a click on the indicator): the list of
+**Instances and messages** (Instances › “Instances and messages…”, Ctrl+M, or a click on the indicator): the list of
 connected instances with their mode and access — on the master each has a **Disconnect** button (the disconnected
 instance becomes independent and is told why; it is not a “lost master”, so no promotion and no event triggers) —
 and a **messaging** service among all the connected computers and their web interfaces: write to **All** or to a
@@ -1391,7 +1393,7 @@ tells every program the old master knew to send its OSC commands to the new addr
 
 ## Web interface
 
-**Settings › Audio, OSC and MIDI… › “Web interface” tab**: starts a small web server on the chosen port (default
+**Instances › WEB control…**: starts a small web server on the chosen port (default
 8080). The **Enable web interface** box turns the server on and off immediately (no need to confirm with OK);
 while it is off the QR code is greyed out. The server answers on **all the computer's network addresses** (cable, Wi-Fi, USB…): the tab lists them all
 with the name of their interface, and the drop-down chooses the one for the **QR code** to frame with the phone
@@ -1422,7 +1424,7 @@ HTTPS: it is meant for the show's local network, not for the Internet.
 
 ## Profile-based OSC devices (e.g. ChamSys MagicQ)
 
-In **Settings › OSC › OSC devices** you add devices starting from a **profile**: choose the profile, then type the
+In **Audio › Audio, OSC and MIDI › OSC › Outgoing OSC devices** you add devices starting from a **profile**: choose the profile, then type the
 IP address or use **🔍 Search the network** (for the MagicQ the search uses Art-Net/ArtPoll and puts the consoles
 recognised as MagicQ/ChamSys at the top); the OSC port is already the profile's. In an **OSC** cue you choose the
 device and the command, with its parameters; below you see the message that will be sent. “Manual” remains
@@ -1443,9 +1445,29 @@ on MQ40/MQ40N):
 | Level, PAUSE, RELEASE of a playback | `/pb/N 0…100`, `/pb/N/pause 1`, `/pb/N/release 1` |
 | Remote command | `/rpc "…"` |
 
-Over OSC the MagicQ accepts playbacks 1–10. New profiles: JSON files in `~/.local/share/cuestage/osc_profiles/`
-(same format as `cuestage/osc_profiles/chamsys_magicq.json`: addresses and arguments with the parameters in braces,
-int/float/enum/text parameters, optional search `{"type": "artnet", "match": [...]}`).
+Over OSC the MagicQ accepts playbacks 1–10.
+
+**QLC+** profile (port 7700 = OSC input of universe 1, 7701 universe 2…): in QLC+ tick “Input” on the OSC line of
+the universe in Inputs/Outputs, then in the Virtual Console widget properties › External input › “Auto detect”
+and press “Test” on the Cuevivo OSC cue: QLC+ learns the address. Values go from 0.0 to 1.0 (QLC+ turns them into
+0–255).
+
+| Command | Message |
+|---|---|
+| Button: press / release | `/PATH 1.0` · `/PATH 0.0` |
+| Slider / fader: level | `/PATH 0.0…1.0` |
+| Cue list: GO (next cue), previous, play/pause, stop | `/LIST/next 1.0`, `/LIST/previous`, `/LIST/play`, `/LIST/stop` |
+| Free message | `/PATH value` |
+
+**Profile editor** (same tab, **OSC profiles** under the devices): every profile — supplied (ChamSys MagicQ,
+QLC+) or yours — with **New…**, **Edit…**, **Duplicate…**, **Delete**, **Import JSON…** and **Export JSON…**. The
+editor has id, name, default port, Art-Net search (names to look for), notes and the commands: id, label,
+address and arguments with the parameters in braces (`/pb/{pb}/go`), help, and the parameters (id, label, type
+int/float/enum/text, default, min, max, the enum items as `value=text; …`), with an example of the resulting
+message. Saving checks the profile (ids, addresses starting with `/`, parameters used in braces that exist…).
+Your profiles are JSON files in the program's data folder (`osc_profiles/`); one with the same id as a supplied
+profile replaces it (editing a supplied profile saves such a copy). The outgoing devices can be exported and
+imported as JSON too (Import JSON… / Export JSON… under their list).
 
 ## OSC and MIDI
 
@@ -1458,13 +1480,13 @@ OSC input on UDP **53000** (configurable): `/go`, `/stop`, `/panic`, `/pause`, `
 secondary is **promoted** it sends each of them `/cuestage/master` with its own address, so they move their
 commands to the new master. The protocol is described in [OSC_CLIENTS.md](OSC_CLIENTS.md).
 
-MIDI input (Settings): map of GO / Stop / Pause / Resume / Next / Previous and a trigger for each cue, in the format
+MIDI input (Audio › Audio, OSC and MIDI › MIDI): map of GO / Stop / Pause / Resume / Next / Previous and a trigger for each cue, in the format
 `note 1 60`, `cc 1 20`, `pc 1 5` (channel 0 = any), with a **Learn** button (in the settings it listens to the port
 chosen in the dialog even before pressing OK). The map also includes **Crossfade to the next**.
 
 ### Several MIDI devices
 
-In Settings › MIDI › “MIDI input devices and filters” you tick **all the MIDI devices** to use: they are opened
+In Audio › Audio, OSC and MIDI › MIDI › “MIDI input devices and filters” you tick **all the MIDI devices** to use: they are opened
 together (ticked devices that are disconnected stay in the list as “not connected” and reopen when you restart
 Cuevivo with the device connected). Each command — GO, Stop, the faders, the crossfader, the trigger and the
 faders of each cue — can state **which device** it must come from, after “@”: `note 1 60 @ Akai APC mini`,
@@ -1488,7 +1510,7 @@ same dialog too, before pressing OK, and are saved with the show. Devices withou
 
 ### MIDI faders and knobs (continuous controls)
 
-Settings › MIDI › “continuous controls”: you assign a control that sends a **value** — control change (`cc 1 7`),
+Audio › Audio, OSC and MIDI › MIDI › “continuous controls”: you assign a control that sends a **value** — control change (`cc 1 7`),
 pitch bend of motorised faders (`pb 1`, 14 bit), or a program change used as a value (`pc 1 *`, the program number
 0…127) — with **Learn** (move the fader):
 - **Volume of the selected cue** — the cue selected in the list: if it is playing the volume changes live (the
@@ -1503,7 +1525,7 @@ The fader is “absolute”: on the first movement the value jumps to the fader 
 
 ### Feedback to the controllers (LED rings, motorised faders, button LEDs)
 
-For each MIDI input device (Settings › Audio, OSC and MIDI › MIDI, filters of the selected device) a **Value
+For each MIDI input device (Audio › Audio, OSC and MIDI › MIDI, filters of the selected device) a **Value
 feedback** port can be chosen — **Automatic: same device** (the output with the same name, as with USB
 controllers such as the Behringer BCR2000 / BCF2000) or any MIDI output. Cuevivo then sends that controller the
 **current value** of every control mapped on it, so LED rings and motorised faders show the real state even when
@@ -1522,7 +1544,7 @@ are sent again. A redundant instance connected to a live master sends nothing (t
 
 - **Automatic**: Playback › **Crossfade to the next** (F6, ⇄ X-fade button of the web page, MIDI, OSC
   `/xfade [seconds]`). The waiting cue (with its “with previous” cues) starts from zero and rises while the current
-  cue goes down and stops at the end; duration in Settings › Audio › “Crossfade time” (default 3 s). The waiting
+  cue goes down and stops at the end; duration in Audio › Audio, OSC and MIDI › Audio › “Crossfade time” (default 3 s). The waiting
   cue's delay (pre-wait) does not apply.
 - **Manual**: a MIDI fader assigned to **Crossfader** (or OSC `/xfader 0…1`). Moving it away from the resting side
   starts the waiting cue, and the position decides the transition; at the end the current cue stops and the

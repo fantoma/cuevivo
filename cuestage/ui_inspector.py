@@ -49,7 +49,7 @@ class Inspector(MediaTabsMixin, TextTabMixin, ControlTabsMixin, MixerTabMixin, S
         self.hotkey_fn = None     # cue -> «impara» la scorciatoia (finestra principale)
         self.set_hotkey_fn = None  # (cue, tasto) -> imposta/toglie la scorciatoia
         self.color_fn = None      # (cue, "#rrggbb" o "") -> colore della cue
-        self.duck_dialog_fn = None  # apre Impostazioni › Ducking
+        self.duck_dialog_fn = None  # apre Audio › Ducking
         self.bus_dialog_fn = None   # apre la finestra dei bus effetti
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
@@ -719,7 +719,7 @@ class Inspector(MediaTabsMixin, TextTabMixin, ControlTabsMixin, MixerTabMixin, S
                 row.addWidget(cb)
             row.addStretch(1)
             f.addRow(label, row)
-        ev_note = QLabel(tr("Ducking: la cue parte quando l'ingresso del ducking (Impostazioni › Ducking) supera la "
+        ev_note = QLabel(tr("Ducking: la cue parte quando l'ingresso del ducking (Audio › Ducking) supera la "
                             "soglia o torna sotto (dopo l'hold). Slave: parte su questa istanza secondaria quando "
                             "il master non risponde più o quando diventa indipendente."))
         ev_note.setWordWrap(True)

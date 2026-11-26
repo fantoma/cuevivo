@@ -36,9 +36,13 @@ MIDI_CONTROLS = [
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, settings, learn_fn, parent=None, rescan_fn=None, web_fn=None):
+    PAGES = ("audio", "osc", "midi", "web", "instances")
+
+    def __init__(self, settings, learn_fn, parent=None, rescan_fn=None, web_fn=None, only=None, title=None):
+        """only: schede da mostrare (chiavi di PAGES; None = tutte). Le altre si costruiscono comunque (nascoste),
+        così result_settings restituisce sempre le impostazioni complete."""
         super().__init__(parent)
-        self.setWindowTitle(tr("Impostazioni"))
+        self.setWindowTitle(title or tr("Impostazioni"))
         self.s = copy.deepcopy(settings)
         self.learn_fn = learn_fn
         self.rescan_fn = rescan_fn
@@ -48,14 +52,21 @@ class SettingsDialog(QDialog):
         self.tabs = QTabWidget()
         v.addWidget(self.tabs, 1)
         pages = []
-        for title in (tr("Audio"), "OSC", "MIDI", tr("Interfaccia web"), tr("Istanze")):
+        self._hidden_pages = []                # schede non mostrate: restano vive per result_settings
+        shown = tuple(only) if only else self.PAGES
+        for key, ptitle in zip(self.PAGES, (tr("Audio"), "OSC", "MIDI", tr("Interfaccia web"), tr("Istanze"))):
             w = QWidget()
             pages.append(QVBoxLayout(w))
             sa = QScrollArea()                 # ogni scheda scorre: i controlli non vengono mai schiacciati
             sa.setWidgetResizable(True)
             sa.setFrameShape(QFrame.NoFrame)
             sa.setWidget(w)
-            self.tabs.addTab(sa, title)
+            if key in shown:
+                self.tabs.addTab(sa, ptitle)
+            else:
+                self._hidden_pages.append(sa)
+        if self.tabs.count() == 1:
+            self.tabs.tabBar().hide()          # una scheda sola: niente linguetta
 
         ga = QGroupBox(tr("Audio"))
         fa = QFormLayout(ga)
@@ -147,7 +158,7 @@ class SettingsDialog(QDialog):
         fo.addRow(tr("Porta UDP"), self.osc_port)
         pages[1].addWidget(go)
 
-        gd = QGroupBox(tr("Dispositivi OSC (profili: console luci, software…)"))
+        gd = QGroupBox(tr("Dispositivi OSC in uscita (profili: console luci, software…)"))
         gdl = QVBoxLayout(gd)
         from PySide6.QtWidgets import QListWidget
         self.osc_devs = [dict(d) for d in self.s.get("osc_devices") or []]
@@ -157,7 +168,8 @@ class SettingsDialog(QDialog):
         gdl.addWidget(self.dev_list)
         br = QHBoxLayout()
         for text, fn in ((tr("Aggiungi da profilo…"), self._add_osc_dev), (tr("Modifica…"), self._edit_osc_dev),
-                         (tr("Rimuovi"), self._del_osc_dev)):
+                         (tr("Rimuovi"), self._del_osc_dev), (tr("Importa JSON…"), self._import_osc_devs),
+                         (tr("Esporta JSON…"), self._export_osc_devs)):
             b = QPushButton(text)
             b.clicked.connect(fn)
             br.addWidget(b)
@@ -169,6 +181,9 @@ class SettingsDialog(QDialog):
         gdl.addWidget(nd)
         pages[1].addWidget(gd)
         self._fill_osc_devs()
+        from .ui_oscprof import OscProfilesBox
+        self.osc_profiles_box = OscProfilesBox()          # profili: elenco, editor, importa / esporta JSON
+        pages[1].addWidget(self.osc_profiles_box)
 
         gw = QGroupBox(tr("Interfaccia web (telefono / tablet)"))
         fw = QFormLayout(gw)
@@ -340,7 +355,7 @@ class SettingsDialog(QDialog):
         self.cl_edit.setChecked(bool(self.s.get("cluster_slave_edit")))
         fi.addRow(self.cl_edit)
         ni = QLabel(tr("Con l'opzione attiva la porta TCP accetta istanze remote (la porta successiva, UDP, serve alla "
-                    "ricerca). Ogni richiesta va confermata qui. Sull'altro computer: Impostazioni › Diventa "
+                    "ricerca). Ogni richiesta va confermata qui. Sull'altro computer: Istanze › Diventa "
                     "slave… Il master invia un heartbeat ogni 100 ms, lo show, i file e ogni modifica; in "
                     "ridondanza anche ogni comando (GO, stop, playhead, crossfade, livelli…)."))
         ni.setWordWrap(True)
@@ -361,6 +376,46 @@ class SettingsDialog(QDialog):
             g = scr.availableGeometry()
             W, H = min(W, g.width() - 40), min(H, g.height() - 60)
         self.resize(W, H)
+
+    def _export_osc_devs(self, path=None):
+        """Dispositivi OSC in uscita in un file JSON (per portarli in un altro show o computer)."""
+        import json
+        import os
+        from PySide6.QtWidgets import QFileDialog
+        if path is None:
+            path, _ = QFileDialog.getSaveFileName(self, tr("Esporta dispositivi OSC"),
+                                                  os.path.join(os.path.expanduser("~"), "dispositivi-osc.json"),
+                                                  "JSON (*.json)")
+        if not path:
+            return None
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"osc_devices": self.osc_devs}, f, ensure_ascii=False, indent=2)
+        return path
+
+    def _import_osc_devs(self, path=None):
+        """Aggiunge i dispositivi di un file JSON esportato (quelli con lo stesso id vengono sostituiti)."""
+        import json
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        if path is None:
+            path, _ = QFileDialog.getOpenFileName(self, tr("Importa dispositivi OSC"), "", "JSON (*.json)")
+        if not path:
+            return 0
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            devs = data.get("osc_devices") if isinstance(data, dict) else data
+            devs = [dict(d) for d in devs if isinstance(d, dict) and d.get("id") and d.get("profile")]
+        except (OSError, ValueError, TypeError, AttributeError) as e:
+            QMessageBox.warning(self, tr("Dispositivi OSC"), tr("File non valido: {0}", e))
+            return 0
+        by_id = {d["id"]: i for i, d in enumerate(self.osc_devs)}
+        for d in devs:
+            if d["id"] in by_id:
+                self.osc_devs[by_id[d["id"]]] = d
+            else:
+                self.osc_devs.append(d)
+        self._fill_osc_devs()
+        return len(devs)
 
     def _fill_osc_devs(self, row=None):
         from .ui_oscdev import device_label

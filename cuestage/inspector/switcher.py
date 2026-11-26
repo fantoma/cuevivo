@@ -72,7 +72,7 @@ class SwitcherTabMixin:
         sc.currentIndexChanged.connect(target_changed)
         f.addRow(tr("Regia"), sc)
         if not confs:
-            lab = QLabel(tr("Nessuna regia video configurata: Impostazioni › Regie video…"))
+            lab = QLabel(tr("Nessuna regia video configurata: Periferiche › Regie video…"))
             lab.setStyleSheet("color:#e0b040;")
             lab.setWordWrap(True)
             f.addRow(lab)

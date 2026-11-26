@@ -2563,7 +2563,7 @@ def osc_target(c, settings):
     if c.osc_device:
         dev = next((d for d in settings.get("osc_devices") or [] if d.get("id") == c.osc_device), None)
         if dev is None:
-            raise RuntimeError(tr("dispositivo OSC non configurato (Impostazioni › OSC)"))
+            raise RuntimeError(tr("dispositivo OSC non configurato (Audio › Audio, OSC e MIDI › OSC)"))
         from .osc_profiles import render
         address, args = render(dev.get("profile"), c.osc_cmd, c.osc_params or {})
         return dev.get("host"), int(dev.get("port") or 0), address, args

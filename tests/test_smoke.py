@@ -5294,6 +5294,125 @@ def t_marker_pause(w):
         w.show_data.dirty = False
 
 
+def t_menus_osc_profiles(w):
+    """Menu Audio / Istanze / Periferiche / Lingue al posto di Impostazioni; Audio, OSC e MIDI con tre schede;
+    profilo QLC+; editor dei profili OSC (nuovo, modifica di un fornito, duplica, elimina, importa/esporta JSON);
+    dispositivi OSC esportati e importati; ricerca dei proiettori PJLink."""
+    import json as _json
+    import socket as _so
+    import threading
+    from PySide6.QtWidgets import QMenu
+    from cuestage import osc_profiles as op
+    from cuestage.i18n import tr
+    titles = [a.text().replace("&", "") for a in w.menuBar().actions()]
+    for t in ("Au&dio", "I&stanze", "&Periferiche"):
+        assert tr(t).replace("&", "") in titles, (t, titles)
+    assert tr("&Impostazioni").replace("&", "") not in titles
+    lang = next(a.menu() for a in w.menuBar().actions() if a.text().replace("&", "").startswith(tr("&Lingue").replace("&", "")))
+    assert [a.text() for a in lang.actions()] == ["Italiano", "English", "Slovenščina"]
+    per = next(a.menu() for a in w.menuBar().actions() if a.text().replace("&", "") == tr("&Periferiche").replace("&", ""))
+    assert [a.text() for a in per.actions() if a.text()][:2] == [tr("Proiettori…"), tr("Pannello proiettori")]
+    from cuestage.ui_dialogs import SettingsDialog
+    d = SettingsDialog(w.show_data.settings, w.learn_midi, w, only=("audio", "osc", "midi"))
+    assert [d.tabs.tabText(i) for i in range(d.tabs.count())] == [tr("Audio"), "OSC", "MIDI"]
+    s2 = d.result_settings()
+    assert s2["web_port"] == w.show_data.settings.get("web_port", s2["web_port"])     # schede nascoste: invariate
+    d.close()
+    dw = SettingsDialog(w.show_data.settings, w.learn_midi, w, only=("web",))
+    assert dw.tabs.count() == 1 and dw.tabs.tabBar().isHidden()
+    dw.close()
+    # profilo QLC+
+    assert op.render("qlcplus", "slider", {"path": "/vc/f1", "level": 1}) == ("/vc/f1", "1.0")
+    assert op.render("qlcplus", "cuelist_next", {}) == ("/cuelist1/next", "1.0")
+    assert not op.validate(op.profiles(reload=True)["qlcplus"])
+    # editor dei profili
+    from cuestage.ui_oscprof import OscProfileEditor, OscProfilesBox
+    for pid in ("prova_cv", "qlcplus_2"):
+        op.delete_user(pid)
+    try:
+        e = OscProfileEditor(w, None)
+        e.pid.setText("prova_cv")
+        e.name.setText("Prova")
+        e._add_cmd()
+        e.cid.setText("go")
+        e.clabel.setText("GO")
+        e.caddr.setText("/go/{n}")
+        e._add_param()
+        e.params.item(0, 0).setText("n")
+        e._store()
+        p = e.profile()
+        assert not op.validate(p), op.validate(p)
+        e._save()
+        assert op.profiles()["prova_cv"]["commands"][0]["params"][0]["id"] == "n"
+        assert op.render("prova_cv", "go", {"n": 3}) == ("/go/3", "")
+        # un profilo fornito modificato conserva i campi che l'editor non mostra (es. force_float)
+        e2 = OscProfileEditor(w, op.profiles()["qlcplus"])
+        e2.cmds.setCurrentRow(2)
+        q = e2.profile()
+        assert q["commands"][2]["params"][1].get("force_float") is True
+        box = OscProfilesBox()
+        box.reload("qlcplus")
+        path = box.export_json(os.path.join(TMP, "qlc.json"))
+        data = _json.load(open(path, encoding="utf-8"))
+        data["id"], data["name"] = "qlcplus_2", "QLC+ 2"
+        _json.dump(data, open(path, "w", encoding="utf-8"))
+        assert box.import_json(path) == "qlcplus_2" and "qlcplus_2" in op.profiles()
+        assert not op.is_builtin("qlcplus_2") and op.is_builtin("qlcplus")
+        bad = os.path.join(TMP, "bad.json")
+        _json.dump({"id": "X"}, open(bad, "w"))
+        from PySide6.QtWidgets import QMessageBox
+        old = QMessageBox.warning
+        QMessageBox.warning = staticmethod(lambda *a, **k: None)
+        try:
+            assert box.import_json(bad) is None
+        finally:
+            QMessageBox.warning = old
+    finally:
+        for pid in ("prova_cv", "qlcplus_2"):
+            op.delete_user(pid)
+    # dispositivi OSC in uscita: esporta / importa
+    d = SettingsDialog(dict(w.show_data.settings, osc_devices=[{"id": "d1", "name": "QLC", "profile": "qlcplus",
+                                                                  "host": "10.0.0.5", "port": 7700}]), w.learn_midi, w)
+    pth = d._export_osc_devs(os.path.join(TMP, "devs.json"))
+    d.osc_devs = []
+    assert d._import_osc_devs(pth) == 1 and d.osc_devs[0]["host"] == "10.0.0.5"
+    assert d.result_settings()["osc_devices"][0]["profile"] == "qlcplus"
+    d.close()
+    # proiettori PJLink: saluto senza password con il nome, e ricerca nella finestra
+    from cuestage.projectors import pjlink_info
+    srv = _so.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(2)
+
+    def serve():
+        for _ in range(2):
+            try:
+                c, _a = srv.accept()
+            except OSError:
+                return
+            c.sendall(b"PJLINK 0\r")
+            try:
+                if c.recv(64).startswith(b"%1NAME"):
+                    c.sendall(b"%1NAME=Sala grande\r")
+            except OSError:
+                pass
+            c.close()
+    threading.Thread(target=serve, daemon=True).start()
+    try:
+        assert pjlink_info("127.0.0.1", srv.getsockname()[1]) == {"auth": False, "name": "Sala grande"}
+    finally:
+        srv.close()
+    from cuestage.ui_projectors import ProjectorsDialog
+    pd = ProjectorsDialog([], w.projectors, w)
+    pd._discover_fn = lambda: [{"host": "10.1.1.20", "mac": "aa:bb", "name": "Sala", "auth": False}]
+    pd._auto_pick = lambda r: True
+    added = pd._search()
+    assert [r["host"] for r in added] == ["10.1.1.20"]
+    assert pd.result_projectors()[0]["host"] == "10.1.1.20" and pd.result_projectors()[0]["driver"] == "pjlink"
+    assert pd._search() == []                            # già in elenco: non si ripete
+    pd.close()
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -6265,6 +6384,7 @@ if __name__ == "__main__":
     check("Nomi lunghi a 1366 px: la finestra non si allarga (puntini)", lambda: t_long_names(w))
     check("Cue attive: trascinare il cursore sospende la cue e riprende dal punto scelto", lambda: t_active_scrub(w))
     check("Marker Pause Cue e Pause Cue e vai al marker: ripresa col ▶ o col GO", lambda: t_marker_pause(w))
+    check("Menu Audio/Istanze/Periferiche/Lingue, profili OSC (QLC+, editor, JSON), ricerca proiettori", lambda: t_menus_osc_profiles(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))
