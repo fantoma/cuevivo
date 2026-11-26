@@ -288,6 +288,16 @@ def marker_window(markers, m, start, end):
     return t, dur
 
 
+def find_marker(markers, key):
+    """Marker per id (o, per i marker senza id, per nome)."""
+    if not key:
+        return None
+    for m in markers:
+        if isinstance(m, dict) and m.get("id") == key:
+            return m
+    return next((m for m in markers if isinstance(m, dict) and m.get("name") == key), None)
+
+
 def due_markers(items, prev, pos):
     """Azioni da eseguire passando dalla posizione prev alla pos del file (anche al giro del loop).
     items: [(tempo di partenza, durata, marker)]; restituisce [(marker, durata)] in ordine."""

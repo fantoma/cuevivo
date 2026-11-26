@@ -5195,6 +5195,59 @@ def t_active_scrub(w):
         run(0.2)
 
 
+def t_marker_pause(w):
+    """Marker «Pause Cue» (riprende col ▶ delle cue attive) e «Pause Cue e vai al marker» (riprende col GO
+    principale): la cue si ferma, il marker di destinazione non scatta all'arrivo, il GO la fa ripartire invece
+    di mandare la cue successiva; poi il GO torna normale."""
+    from cuestage.i18n import tr
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    a = tone("mpause.wav", 9)
+    c = Cue("audio", number="1", name="Brano", file=a, markers=[
+        {"t": 1.0, "name": "A", "action": "pause", "resume": "active"},
+        {"t": 2.0, "name": "B", "action": "pause_goto", "goto": "mC", "resume": "go"},
+        {"t": 5.0, "name": "C", "id": "mC", "action": "cue", "target": "2"}])
+    nxt = Cue("wait", number="2", name="Dopo", duration=10.0)
+    sh.cues[:] = [c, nxt]
+    w._set_show(sh)
+    w.loader.audio_now(a)
+    run(0.2)
+    try:
+        w.ctrl.start_cue(c)
+        w.ctrl.set_playhead(1)
+        inst = w.ctrl.instances[c.id]
+        assert wait_until(lambda: inst.paused, 4) and inst.marker_hold == "active"
+        assert abs(inst.position() - 1.0) < 0.2, inst.position()
+        assert w.ctrl.marker_held() is None                  # ▶ delle cue attive: il GO non c'entra
+        w.ctrl.pause_cue(c.id, False)                        # ▶ nel pannello delle cue attive
+        assert wait_until(lambda: inst.paused and inst.marker_hold == "go", 4)
+        assert abs(inst.position() - 5.0) < 0.2, inst.position()           # spostata sul marker C
+        run(0.3)
+        assert nxt.id not in w.ctrl.instances                # il marker di destinazione non scatta all'arrivo
+        w._update_standby()
+        assert w.standby.text() == tr("⏸ {0}: GO = riprendi", c.label())
+        w.go()                                               # il GO riprende la cue, non manda la successiva
+        run(0.3)
+        assert not inst.paused and inst.marker_hold is None and nxt.id not in w.ctrl.instances
+        assert inst.position() > 5.1
+        w.go()                                               # mentre suona: GO normale
+        run(0.2)
+        assert nxt.id in w.ctrl.instances
+        # editor dei marker con le nuove azioni
+        w._select_row(0)
+        ins = w.inspector
+        ins.tabs.setCurrentIndex(ins._tab_keys.index("Tempi e loop"))
+        run(0.3)
+        from PySide6.QtWidgets import QComboBox
+        gotos = [cb for cb in ins.findChildren(QComboBox) if cb.isVisible() and cb.findData("mC") >= 0]
+        assert gotos and gotos[0].currentData() == "mC"
+        assert all(o.get("id") for o in c.markers if o["name"] != "B")
+    finally:
+        w.ctrl.stop_all(0)
+        run(0.2)
+        w.show_data.dirty = False
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -6165,6 +6218,7 @@ if __name__ == "__main__":
     check("Cue attive per i programmi OSC (Script Follower): abbonamento, stato, filtri, stop e pausa", lambda: t_active_feed(w))
     check("Nomi lunghi a 1366 px: la finestra non si allarga (puntini)", lambda: t_long_names(w))
     check("Cue attive: trascinare il cursore sospende la cue e riprende dal punto scelto", lambda: t_active_scrub(w))
+    check("Marker Pause Cue e Pause Cue e vai al marker: ripresa col ▶ o col GO", lambda: t_marker_pause(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

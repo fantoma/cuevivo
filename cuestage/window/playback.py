@@ -93,6 +93,12 @@ class PlaybackMixin:
         cues = lst.cues
         where = f"{lst.name} › " if len(self.show_data.lists) > 1 else ""
         self._update_tabs()
+        held = self.ctrl.marker_held()
+        if held is not None:                 # cue ferma su un marker «Pause Cue»: il GO la fa ripartire
+            self.standby.setText(tr("⏸ {0}: GO = riprendi", held.cue.label()))
+            self.standby_notes.setText(tr("Ferma su un marker «Pause Cue» · dopo, il GO manda la cue successiva"))
+            self.go_btn.setEnabled(True)
+            return
         cap = self.ctrl.captured_group(lst)
         if cap is not None and hasattr(cap, "phrases"):
             nxt = cap.phrases[cap.idx + 1].replace("\n", " / ")

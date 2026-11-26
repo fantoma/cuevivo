@@ -41,6 +41,7 @@ class Instance:
     live_op = 1.0
     xf_gain = 1.0
     xf_op = 1.0
+    marker_hold = None      # ferma su un marker «Pause Cue»: «go» (riparte col GO) o «active» (col ▶ delle cue attive)
 
     def live_edit(self):
         """La cue è stata modificata nell'ispettore mentre suona (curva di volume, volume…)."""
@@ -442,7 +443,8 @@ class KeyframeMixin:
         return self.elapsed
 
     def _tick_markers(self):
-        """Azioni dei marker dell'utente (Recall Preset, Call Cue) quando la riproduzione li supera."""
+        """Azioni dei marker dell'utente (Recall Preset, Call Cue…) quando la riproduzione li supera."""
+        self.marker_hold = None                          # sta suonando: non è più ferma su un marker
         ms = getattr(self.cue, "markers", None)
         if not ms or self.cue.type not in ("audio", "video"):
             return
@@ -463,7 +465,10 @@ class KeyframeMixin:
                 return
             self._mk_jump = None
             arrive = min(pos, target) if near else pos
-            self._mk_pos = arrive - 0.001                      # un marker proprio sul punto di arrivo scatta
+            # un marker proprio sul punto di arrivo scatta (non quello di destinazione di un «vai al marker»)
+            skip = getattr(self, "_mk_skip_arrival", False)
+            self._mk_skip_arrival = False
+            self._mk_pos = arrive + (0.0005 if skip else -0.001)
             self._markers_rebuild(arrive)
             prev = self._mk_pos
         else:
@@ -589,6 +594,31 @@ class KeyframeMixin:
                 self.ctrl.message.emit(tr("Marker «{0}»: cue «{1}» non trovata", m.get("name") or "M", m["target"]))
             elif tg is not c:
                 self.ctrl.trigger(tg, cascade=True)
+        elif act in ("pause", "pause_goto"):
+            self._marker_pause(m)
+
+    def _marker_pause(self, m):
+        """«Pause Cue» (e «Pause Cue e vai al marker»): la cue si ferma (dopo essersi spostata sul marker scelto);
+        riparte col ▶ delle cue attive oppure, con «riprende col GO», col GO principale."""
+        from .markers import find_marker
+        c = self.cue
+        if m.get("action") == "pause_goto":
+            tg = find_marker(getattr(c, "markers", None) or [], m.get("goto"))
+            if tg is None:
+                self.ctrl.message.emit(tr("Marker «{0}»: marker di destinazione non trovato", m.get("name") or "M"))
+            else:
+                t_file = float(tg.get("t", 0) or 0)
+                self._mk_skip_arrival = True
+                self.seek_to(max(0.0, t_file - float(c.start or 0)))
+                if self._mk_jump is None:                  # audio: il salto è già avvenuto
+                    self._mk_skip_arrival = False
+                    self._mk_pos = t_file + 0.0005          # il marker di destinazione non scatta all'arrivo
+        self.pause(True)
+        self.marker_hold = "go" if m.get("resume") == "go" else "active"
+        self.ctrl.message.emit(tr("«{0}» in pausa al marker «{1}»: {2}", c.label(), m.get("name") or "M",
+                                  tr("GO per riprendere") if self.marker_hold == "go"
+                                  else tr("▶ nelle cue attive per riprendere")))
+        self.ctrl.changed.emit()
 
     def _tick_kf(self, dt):
         self._tick_markers()
@@ -2714,8 +2744,19 @@ class Controller(QObject):
             self.changed.emit()
         return bool(gs)
 
+    def marker_held(self):
+        """Cue ferma su un marker «Pause Cue» che riparte col GO (la più recente), o None."""
+        hs = [i for i in self.instances.values() if not i.done and i.paused and i.marker_hold == "go"]
+        return max(hs, key=lambda i: i.started_at) if hs else None
+
     def go(self, lst=None):
         from .groups import block_end
+        held = self.marker_held()
+        if held is not None:                      # cue ferma su un marker: il GO la fa ripartire
+            held.marker_hold = None
+            held.pause(False)
+            self.changed.emit()
+            return
         lst = lst or self.go_list()
         cues = lst.cues
         cap = self.captured_group(lst)
@@ -3199,6 +3240,8 @@ class Controller(QObject):
         inst = self.instances.get(cue_id)
         if inst:
             inst.pause(on)
+            if not on:
+                inst.marker_hold = None
         self.changed.emit()
 
     def pause_all(self):

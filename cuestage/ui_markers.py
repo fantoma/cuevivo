@@ -10,11 +10,12 @@ from PySide6.QtWidgets import (
 from .i18n import tr
 from .model import PRESET_KINDS_FOR, TYPE_LABELS
 
-ACTIONS = ("none", "preset", "cue", "stop")
+ACTIONS = ("none", "preset", "cue", "stop", "pause", "pause_goto")
 
 
 def action_labels():
-    return {"none": tr("Nessuna"), "preset": tr("Recall Preset"), "cue": tr("Call Cue"), "stop": tr("Stop Cue")}
+    return {"none": tr("Nessuna"), "preset": tr("Recall Preset"), "cue": tr("Call Cue"), "stop": tr("Stop Cue"),
+            "pause": tr("Pause Cue"), "pause_goto": tr("Pause Cue e vai al marker")}
 
 
 def preset_names(cue):
@@ -160,7 +161,9 @@ class MarkersPanel(QWidget):
         act.setToolTip(tr("Cosa succede quando la riproduzione arriva al marker:\n"
                           "Recall Preset: la cue va a un suo preset (audio e video) nel tempo indicato\n"
                           "Call Cue: avvia un'altra cue\n"
-                          "Stop Cue: ferma questa cue (o quella scelta) con il fade indicato"))
+                          "Stop Cue: ferma questa cue (o quella scelta) con il fade indicato\n"
+                          "Pause Cue: la cue si ferma qui e riparte col ▶ delle cue attive o col GO\n"
+                          "Pause Cue e vai al marker: la cue si sposta al marker scelto e si ferma lì"))
 
         # parametri dell'azione
         pw = QWidget()
@@ -214,8 +217,44 @@ class MarkersPanel(QWidget):
         shape.setCurrentIndex(max(0, shape.findData(m.get("shape") or "scurve")))
         shape.setToolTip(tr("Forma del fade"))
         shape.currentIndexChanged.connect(lambda i: (m.__setitem__("shape", shape.itemData(i)), self.changed.emit()))
+        # Pause Cue: marker di destinazione e modo di ripartire
+        goto_lab = QLabel(tr("vai a"))
+        goto = QComboBox()
+        goto.setToolTip(tr("Marker a cui la cue si sposta prima di fermarsi"))
+
+        def fill_goto():
+            goto.blockSignals(True)
+            goto.clear()
+            goto.addItem(tr("— scegli il marker —"), "")
+            import uuid
+            from .media import fmt_time
+            for o in sorted(self.markers(), key=lambda x: float(x.get("t", 0) or 0)):
+                if o is m or not isinstance(o, dict):
+                    continue
+                if not o.get("id"):
+                    o["id"] = uuid.uuid4().hex[:10]     # i marker di destinazione si riconoscono per id
+                goto.addItem(f"{o.get('name') or 'M'} · {fmt_time(float(o.get('t', 0) or 0))}", o["id"])
+            j = goto.findData(m.get("goto") or "")
+            if j < 0 and m.get("goto"):
+                goto.addItem(tr("⚠ marker eliminato"), m["goto"])
+                j = goto.count() - 1
+            goto.setCurrentIndex(max(0, j))
+            goto.blockSignals(False)
+        goto.currentIndexChanged.connect(lambda i: (m.__setitem__("goto", goto.itemData(i) or ""), self.changed.emit()))
+        resume = QComboBox()
+        resume.addItem(tr("riprende col ▶ delle cue attive"), "active")
+        resume.addItem(tr("riprende col GO principale"), "go")
+        resume.setCurrentIndex(max(0, resume.findData(m.get("resume") or "active")))
+        resume.setToolTip(tr("Come riparte la cue ferma sul marker:\n"
+                             "▶ delle cue attive: col pulsante della cue nel pannello «Cue attive»\n"
+                             "GO principale: il prossimo GO fa ripartire la cue (invece di mandare la cue "
+                             "successiva); mentre la cue suona il GO manda la cue successiva come sempre"))
+        resume.currentIndexChanged.connect(lambda i: (m.__setitem__("resume", resume.itemData(i)), self.changed.emit()))
         ph.addWidget(pre)
         ph.addWidget(tgt)
+        ph.addWidget(goto_lab)
+        ph.addWidget(goto)
+        ph.addWidget(resume)
         ph.addWidget(fade_lab)
         ph.addWidget(fmode)
         ph.addWidget(fade)
@@ -243,6 +282,11 @@ class MarkersPanel(QWidget):
             tgt.setVisible(k in ("cue", "stop"))
             if k in ("cue", "stop"):
                 fill_targets()
+            goto_lab.setVisible(k == "pause_goto")
+            goto.setVisible(k == "pause_goto")
+            if k == "pause_goto":
+                fill_goto()
+            resume.setVisible(k in ("pause", "pause_goto"))
 
         def act_changed(_i):
             k = act.currentData()

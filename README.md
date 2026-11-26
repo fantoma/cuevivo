@@ -1045,6 +1045,12 @@ and audio keyframes (light blue ◆; hollow = “base”).
   preset marker already passed applies at once (with what is left of its fade), and jumping back before every
   preset marker returns to the cue's own values. The same holds when an instance aligns to the master
   (redundancy).
+- **Marker actions** (column “Action” of the marker list): **Recall Preset**, **Call Cue**, **Stop Cue**,
+  **Pause Cue** (the cue stops at the marker) and **Pause Cue and go to marker** (the cue moves to the chosen
+  marker of the same cue and stops there; the destination marker's own action does not fire on arrival). A
+  paused cue resumes either with its **▶ in the Active cues** panel, or — with “resumes with the main GO” — with
+  the **main GO**: while the cue is held, GO resumes it instead of sending the next cue (the standby shows
+  “⏸ cue: GO = resume”); while the cue plays, GO sends the next cue as usual.
 - **Progress bars** during playback (“Status” column and “Active cues” panel): real cue time with the loop
   unrolled into its repetitions, fade ramps, curve and keyframes; with an infinite loop the cursor runs inside
   the loop region. Hovering a marker shows its description.
