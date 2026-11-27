@@ -12,11 +12,11 @@ Per Scarlett Gen 2/3 con kernel tra 5.14 e 6.6 serve l'opzione del modulo:
     echo "options snd_usb_audio device_setup=1" | sudo tee /etc/modprobe.d/scarlett.conf   (poi riavvio)
 Richiede «amixer» (pacchetto alsa-utils).
 """
-from cuestage.i18n import tr
+from cuevivo.i18n import tr
 import re
 
-from cuestage.mixers import MixerDriver, MixerError
-from cuestage.alsactl import (AlsaError, alsa_cards, cached_controls, cset, group_of, read_controls,
+from cuevivo.mixers import MixerDriver, MixerError
+from cuevivo.alsactl import (AlsaError, alsa_cards, cached_controls, cset, group_of, read_controls,
                               resolve_card)
 
 RE_OUT_VOL = re.compile(r"^Line (?:Out )?(\d+)\b(?!.*Volume Control).*Playback Volume$")

@@ -25,8 +25,8 @@ import struct
 import threading
 import time
 
-from cuestage.i18n import tr
-from cuestage.mixers import MixerDriver, MixerError
+from cuevivo.i18n import tr
+from cuevivo.mixers import MixerDriver, MixerError
 
 PORT = 9910
 F_ACK_REQ, F_HELLO, F_RETRANSMIT, F_RETRANSMIT_REQ, F_ACK = 0x01, 0x02, 0x04, 0x08, 0x10

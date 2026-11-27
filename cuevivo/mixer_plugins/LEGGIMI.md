@@ -1,10 +1,10 @@
 # Plugin dei mixer
 
-Un plugin è un file `.py` in `~/.local/share/cuestage/mixer_plugins/` (o in questa cartella) con una classe
-derivata da `cuestage.mixers.MixerDriver`. «Ricarica plugin» in Impostazioni › Mixer… lo carica.
+Un plugin è un file `.py` in `~/.local/share/cuevivo/mixer_plugins/` (o in questa cartella) con una classe
+derivata da `cuevivo.mixers.MixerDriver`. «Ricarica plugin» in Impostazioni › Mixer… lo carica.
 
 ```python
-from cuestage.mixers import MixerDriver, MixerError, OscLink, TcpMidiLink, NrpnParser, nrpn
+from cuevivo.mixers import MixerDriver, MixerError, OscLink, TcpMidiLink, NrpnParser, nrpn
 
 class MioMixer(MixerDriver):
     ID = "mio_mixer"                 # univoco
@@ -53,5 +53,5 @@ Regie video: `SWITCHER = True` (con `CONTROLS = True`) — il driver compare in 
 che tra i mixer, i comandi nel pannello delle regie (F11) e nelle cue «Regia video» (elenco di comandi eseguiti in
 ordine). `roland_video.py` (Roland V-8HD e V-1HD via MIDI su USB) è l'esempio; `obs_studio.py` (WebSocket) e
 `blackmagic_atem.py` (protocollo ATEM su UDP, con un thread di ricezione che conferma i pacchetti) quelli in rete.
-`schede_audio_alsa.py` (Focusrite Scarlett/Clarett e qualsiasi scheda ALSA) usa `cuestage.alsactl`
+`schede_audio_alsa.py` (Focusrite Scarlett/Clarett e qualsiasi scheda ALSA) usa `cuevivo.alsactl`
 (lettura e scrittura con «amixer») e il campo di configurazione `card` (id della scheda ALSA).

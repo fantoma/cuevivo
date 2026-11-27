@@ -10,8 +10,8 @@ Le stesse foglie «mute»/«fdr» valgono per aux in (/aux), bus (/bus), main (/
 i mute group hanno «/mgrp/N/mute». Nomi: «/ch/N/name» (stessa struttura per le altre sezioni). Il WING non ha canali «ritorno effetti»: gli effetti rientrano su
 canali, aux o bus.
 """
-from cuestage.i18n import tr
-from cuestage.mixers import MixerDriver, MixerError, OscLink, udp_discover
+from cuevivo.i18n import tr
+from cuevivo.mixers import MixerDriver, MixerError, OscLink, udp_discover
 
 NODES = {"ch": "ch", "auxin": "aux", "aux": "bus", "main": "main", "mtx": "mtx", "dca": "dca", "mgrp": "mgrp"}
 

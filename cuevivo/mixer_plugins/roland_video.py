@@ -26,8 +26,8 @@ Le regie non rimandano il loro stato: i valori mostrati sono gli ultimi inviati 
 """
 import time
 
-from cuestage.i18n import tr
-from cuestage.mixers import MixerDriver, MixerError, resolve_midi_port
+from cuevivo.i18n import tr
+from cuevivo.mixers import MixerDriver, MixerError, resolve_midi_port
 
 try:
     import mido

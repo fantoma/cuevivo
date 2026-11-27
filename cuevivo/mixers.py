@@ -1,6 +1,6 @@
 """Mixer digitali: driver a plugin, ricerca in rete, mute, fader, fade.
 
-Un driver (plugin in cuestage/mixer_plugins/ o in ~/.local/share/cuestage/mixer_plugins/) estende
+Un driver (plugin in cuevivo/mixer_plugins/ o in ~/.local/share/cuevivo/mixer_plugins/) estende
 MixerDriver e dichiara le SEZIONI del mixer (canali, aux, gruppi, effetti, DCA, mute group…) con il
 numero di elementi e cosa si può comandare (mute, fader). I comandi di ogni mixer passano da un suo
 thread (in ordine); i driver restano collegati (TCP/UDP/MIDI) tra un comando e l'altro.
@@ -641,6 +641,8 @@ class MixerRegistry:
         return self
 
     def _load_file(self, path):
+        from .legacy import install as _legacy_imports
+        _legacy_imports()                  # plugin che importano ancora «cuestage…»
         name = "cuestage_mixer_" + os.path.splitext(os.path.basename(path))[0]
         spec = importlib.util.spec_from_file_location(name, path)
         mod = importlib.util.module_from_spec(spec)

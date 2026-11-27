@@ -4,7 +4,7 @@ Un plugin è un file `.py` che definisce una classe derivata da `ProjectorDriver
 Cuevivo li carica da due cartelle:
 
 - `plugins/` dentro Cuevivo (plugin inclusi: PJLink è integrato, più Panasonic MZ880/MZ882 e Optoma 506);
-- `~/.local/share/cuestage/plugins/` — **i tuoi plugin**: non vengono sovrascritti dagli aggiornamenti.
+- `~/.local/share/cuevivo/plugins/` — **i tuoi plugin**: non vengono sovrascritti dagli aggiornamenti.
   Un plugin utente con lo stesso `ID` di uno incluso lo sostituisce.
 
 Dopo aver aggiunto o modificato un file: *Impostazioni › Proiettori… › Ricarica plugin*.
@@ -13,7 +13,7 @@ I file che iniziano con `_` vengono ignorati. Gli errori di caricamento sono mos
 ## Esempio minimo
 
 ```python
-from cuestage.projectors import ProjectorDriver, ProjectorError
+from cuevivo.projectors import ProjectorDriver, ProjectorError
 
 class MioProiettore(ProjectorDriver):
     ID = "marca_modello"                 # univoco

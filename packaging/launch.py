@@ -13,8 +13,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FROZEN = getattr(sys, "frozen", False)                 # PyInstaller
-if not FROZEN:      # AppImage: cuestage/ accanto a questo file; sorgenti: nella cartella superiore
-    sys.path.insert(0, HERE if os.path.isdir(os.path.join(HERE, "cuestage")) else os.path.dirname(HERE))
+if not FROZEN:      # AppImage: cuevivo/ accanto a questo file; sorgenti: nella cartella superiore
+    sys.path.insert(0, HERE if os.path.isdir(os.path.join(HERE, "cuevivo")) else os.path.dirname(HERE))
 
 # AppImage: sounddevice cerca PortAudio con ctypes.util.find_library, gli indichiamo quella inclusa
 _TOP = os.environ.get("CUEVIVO_APPIMAGE_DIR") or os.path.dirname(os.path.dirname(HERE))
@@ -33,9 +33,9 @@ def _log_without_console():
     farebbe cadere il programma. Li mandiamo in un file di log nella cartella dei dati."""
     if sys.stdout is not None and sys.stderr is not None:
         return
-    from cuestage.system import data_dir
+    from cuevivo.system import data_dir
     try:
-        from cuestage.appinfo import migrate
+        from cuevivo.appinfo import migrate
         migrate()                   # prima di creare la cartella dei dati: quella del nome precedente si copia
     except Exception:
         pass
@@ -52,7 +52,7 @@ def self_test(report=None):
 
     import subprocess
     import time
-    from cuestage.system import IS_LINUX, IS_WIN, OS_NAME, find_tool, subprocess_flags
+    from cuevivo.system import IS_LINUX, IS_WIN, OS_NAME, find_tool, subprocess_flags
     lines = []
     ok = True
 
@@ -72,8 +72,8 @@ def self_test(report=None):
             out(f"  {'!' if optional else '✘'} {name}: {type(e).__name__}: {e}"
                 + ("  (non disponibile su questo computer: il resto funziona)" if optional else ""))
 
-    import cuestage
-    out(f"Cuevivo {cuestage.__version__} — {OS_NAME} — Python {sys.version.split()[0]}")
+    import cuevivo
+    out(f"Cuevivo {cuevivo.__version__} — {OS_NAME} — Python {sys.version.split()[0]}")
     step("PySide6", lambda: __import__("PySide6").__version__)
     step("Qt Multimedia", lambda: (__import__("PySide6.QtMultimedia", fromlist=["x"]), "ok")[1])
     step("numpy", lambda: __import__("numpy").__version__)
@@ -100,7 +100,7 @@ def self_test(report=None):
     def decode():
         import tempfile
         import wave
-        from cuestage import media
+        from cuevivo import media
         path = os.path.join(tempfile.mkdtemp(), "prova.wav")
         with wave.open(path, "wb") as w:
             w.setnchannels(2)
@@ -115,7 +115,7 @@ def self_test(report=None):
     step("decodifica audio (ffmpeg)", decode)
 
     def plugins():
-        from cuestage.mixers import MixerRegistry
+        from cuevivo.mixers import MixerRegistry
         r = MixerRegistry().load()
         if r.errors:
             raise RuntimeError("; ".join(r.errors))
@@ -124,7 +124,7 @@ def self_test(report=None):
 
     def window():
         from PySide6.QtWidgets import QApplication
-        from cuestage.main_window import MainWindow
+        from cuevivo.main_window import MainWindow
         app = QApplication.instance() or QApplication([])
         w = MainWindow()
         w.show()
@@ -146,8 +146,8 @@ def self_test(report=None):
 def main():
     args = sys.argv[1:]
     if args[:1] == ["--version"]:
-        import cuestage
-        print("Cuevivo", cuestage.__version__)
+        import cuevivo
+        print("Cuevivo", cuevivo.__version__)
         return 0
     if args[:1] == ["--self-test"]:
         if sys.stdout is None:
@@ -170,8 +170,8 @@ def main():
     _log_without_console()
     # macOS: il Finder aggiunge «-psn_…» agli argomenti delle app avviate a mano
     args = [a for a in args if not a.startswith("-psn_")]
-    sys.argv = ["cuestage"] + args
-    from cuestage.__main__ import main as run
+    sys.argv = ["cuevivo"] + args
+    from cuevivo.__main__ import main as run
     return run()
 
 

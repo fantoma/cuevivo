@@ -3,4 +3,4 @@
 DIR="$(cd "$(dirname "$0")" && pwd)"
 PY="$DIR/.venv/bin/python"
 [ -x "$PY" ] || PY=python3
-cd "$DIR" && exec "$PY" -m cuestage "$@"
+cd "$DIR" && exec "$PY" -m cuevivo "$@"

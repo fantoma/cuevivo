@@ -1,6 +1,6 @@
 """Controllo di videoproiettori via rete: comandi comuni, driver PJLink integrato e sistema di plugin.
 
-Un plugin è un file .py (nella cartella «plugins» di Cuevivo o in ~/.local/share/cuestage/plugins/)
+Un plugin è un file .py (nella cartella «plugins» di Cuevivo o in ~/.local/share/cuevivo/plugins/)
 che definisce una o più sottoclassi di ProjectorDriver. Vedi plugins/LEGGIMI_PLUGIN.md.
 """
 from .i18n import tr
@@ -426,6 +426,8 @@ class PluginRegistry:
         return self
 
     def _load_file(self, path):
+        from .legacy import install as _legacy_imports
+        _legacy_imports()                  # plugin che importano ancora «cuestage…»
         name = "cuestage_plugin_" + os.path.splitext(os.path.basename(path))[0]
         spec = importlib.util.spec_from_file_location(name, path)
         mod = importlib.util.module_from_spec(spec)

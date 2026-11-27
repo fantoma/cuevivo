@@ -3,6 +3,8 @@ import sys
 
 
 def main():
+    from .legacy import install
+    install()                           # «import cuestage…» (plugin precedenti la rinomina)
     from . import i18n                  # prima di tutto: i testi dei moduli si traducono all'importazione
     from .appinfo import APP_NAME, APP_SLUG, env, has_env, migrate
     migrate()                           # nome precedente del programma: preferenze e dati ripresi

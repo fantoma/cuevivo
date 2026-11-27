@@ -1,6 +1,6 @@
 """Profili MIDI: apparecchi comandati via MIDI (es. Akai MPC) con i loro comandi già pronti per le cue MIDI out.
 
-Un profilo è un file JSON in cuestage/midi_profiles/ o in ~/.local/share/cuestage/midi_profiles/:
+Un profilo è un file JSON in cuevivo/midi_profiles/ o in ~/.local/share/cuevivo/midi_profiles/:
   id, name, notes, commands: [{id, label, lines: ["mmc {dev} play", …], params: [{id, label,
   type int|float|text|note, min, max, default}], help}]
 Le righe usano la sintassi delle cue MIDI out (note, cc, mmc, start, wait…) con i parametri tra graffe:

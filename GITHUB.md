@@ -74,7 +74,7 @@ anche la cartella sul disco (`mv cuestage cuevivo`): non cambia nulla per git.
 
 ## 3. Pubblicare una versione (ogni volta)
 
-1. Scegli il numero, per esempio 1.0.1, e scrivilo in `cuestage/__init__.py`:
+1. Scegli il numero, per esempio 1.0.1, e scrivilo in `cuevivo/__init__.py`:
    ```python
    __version__ = "1.0.1"
    ```

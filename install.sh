@@ -2,7 +2,7 @@
 # Installazione di Cuevivo su Ubuntu (22.04 e successive)
 set -e
 DIR="$(cd "$(dirname "$0")" && pwd)"
-APP="Cuevivo"                      # nome che si vede (come APP_NAME in cuestage/appinfo.py)
+APP="Cuevivo"                      # nome che si vede (come APP_NAME in cuevivo/appinfo.py)
 SLUG="cuevivo"                     # cartella, comando e voce di menu (come APP_SLUG)
 OLD_SLUGS="cuestage"               # nomi precedenti: installazione e dati vengono spostati qui
 DEST="$HOME/.local/share/$SLUG"
@@ -38,7 +38,8 @@ sudo apt install -y python3 python3-venv python3-dev ffmpeg libportaudio2 \
 
 echo "==> Copia dei file in $DEST"
 mkdir -p "$DEST"
-cp -r "$DIR/cuestage" "$DIR/requirements.txt" "$DIR/run.sh" "$DEST/"
+rm -rf "$DEST/cuestage"            # cartella del codice delle versioni precedenti (ora cuevivo)
+cp -r "$DIR/cuevivo" "$DIR/requirements.txt" "$DIR/run.sh" "$DEST/"
 [ -f "$DIR/README.md" ] && cp "$DIR/README.md" "$DEST/"
 chmod +x "$DEST/run.sh"
 
@@ -57,7 +58,7 @@ fi
 echo "==> Avviatore, icona e voce di menu"
 mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.local/share/icons/hicolor/256x256/apps"
 ln -sf "$DEST/run.sh" "$HOME/.local/bin/$SLUG"
-cp "$DIR/cuestage/icon.png" "$HOME/.local/share/icons/hicolor/256x256/apps/$SLUG.png"
+cp "$DIR/cuevivo/icon.png" "$HOME/.local/share/icons/hicolor/256x256/apps/$SLUG.png"
 # StartupWMClass e il nome del file ($SLUG.desktop = setDesktopFileName nel programma) fanno sì che GNOME
 # riconosca la finestra e ne mostri l'icona nella barra delle applicazioni (X11 e Wayland)
 cat > "$HOME/.local/share/applications/$SLUG.desktop" <<DESK

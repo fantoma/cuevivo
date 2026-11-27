@@ -1,6 +1,6 @@
 """Profili OSC: dispositivi (console luci, mixer, software…) con i loro comandi già pronti.
 
-Un profilo è un file JSON in cuestage/osc_profiles/ o in ~/.local/share/cuestage/osc_profiles/:
+Un profilo è un file JSON in cuevivo/osc_profiles/ o in ~/.local/share/cuevivo/osc_profiles/:
   id, name, port (porta OSC predefinita), discover (facoltativo: {"type": "artnet", "match": [...]}),
   notes, commands: [{id, label, address, args, params: [{id, label, type int|float|enum|text, …}], help}]
 Indirizzo e argomenti usano i parametri tra graffe: "/pb/{pb}/go".

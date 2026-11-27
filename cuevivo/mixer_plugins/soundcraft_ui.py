@@ -12,7 +12,7 @@ Protocollo come nella libreria open source «soundcraft-ui-connection» (F. Malc
 Numero di canali (dalle specifiche, da verificare): Ui16 12 ingressi + 4 aux, Ui12 8 ingressi + 2 aux;
 per entrambi 2 line in, 2 player, 4 FX. Il master non ha un mute proprio: «Master» = MUTE ALL.
 """
-from cuestage.i18n import tr
+from cuevivo.i18n import tr
 import base64
 import math
 import os
@@ -21,7 +21,7 @@ import struct
 import threading
 import time
 
-from cuestage.mixers import MixerDriver, MixerError, tcp_scan
+from cuevivo.mixers import MixerDriver, MixerError, tcp_scan
 
 PORT = 80
 LAYOUT = {"ui16": {"ch": 12, "aux": 4}, "ui12": {"ch": 8, "aux": 2}}

@@ -16,7 +16,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 BUILD="$ROOT/build/macos"
 CACHE="$ROOT/build/cache"
-VERSION="$(sed -n 's/^__version__ *= *"\(.*\)"/\1/p' cuestage/__init__.py)"
+VERSION="$(sed -n 's/^__version__ *= *"\(.*\)"/\1/p' cuevivo/__init__.py)"
 ARCH="$(uname -m)"                                   # arm64 o x86_64
 PY="${PYTHON:-python3}"
 say() { printf '\033[1;36m==> %s\033[0m\n' "$*"; }

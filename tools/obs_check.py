@@ -15,7 +15,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from cuestage.mixers import WebSocketClient  # noqa: E402
+from cuevivo.mixers import WebSocketClient  # noqa: E402
 
 
 def main():
@@ -64,7 +64,7 @@ def main():
         if auth:
             import importlib.util
             path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "cuestage", "mixer_plugins", "obs_studio.py")
+                                "cuevivo", "mixer_plugins", "obs_studio.py")
             spec = importlib.util.spec_from_file_location("obs_studio", path)
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)

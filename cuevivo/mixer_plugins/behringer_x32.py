@@ -12,8 +12,8 @@ Protocollo OSC del X32/M32 (lo stesso per le due famiglie):
     /dca/1/config/name); i mute group non hanno nome
 Sezioni: 32 canali, 8 aux in, 8 ritorni FX, 16 mix bus (aux), 6 matrici, master stereo, 8 DCA, 6 mute group.
 """
-from cuestage.i18n import tr
-from cuestage.mixers import MixerDriver, MixerError, OscLink, db_to_x32, x32_to_db, osc_decode, osc_encode, udp_discover
+from cuevivo.i18n import tr
+from cuevivo.mixers import MixerDriver, MixerError, OscLink, db_to_x32, x32_to_db, osc_decode, osc_encode, udp_discover
 
 PATHS = {"ch": "/ch/{:02d}/mix", "auxin": "/auxin/{:02d}/mix", "fx": "/fxrtn/{:02d}/mix",
          "aux": "/bus/{:02d}/mix", "mtx": "/mtx/{:02d}/mix", "main": "/main/st/mix", "dca": "/dca/{}"}

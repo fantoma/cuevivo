@@ -18,10 +18,10 @@ VXX:LNSIn a tre velocità. Questi modelli NON hanno la lens memory.
 I codici sono quelli della documentazione dei comandi Panasonic per le serie da installazione: se un
 modello risponde ERR1/ERR2, verificare sul suo elenco comandi e correggere le tabelle qui sotto.
 """
-from cuestage.i18n import tr
+from cuevivo.i18n import tr
 import hashlib
 
-from cuestage.projectors import ProjectorDriver, ProjectorError
+from cuevivo.projectors import ProjectorDriver, ProjectorError
 
 
 class PanasonicMZ880(ProjectorDriver):

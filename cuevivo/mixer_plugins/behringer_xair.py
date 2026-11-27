@@ -12,8 +12,8 @@ il protocollo non è documentato ufficialmente):
 Numero di canali per modello (dalle specifiche; i numeri in più non rispondono, non fanno danni):
 XR18/MR18 16 canali + aux in, XR16 14, XR12 10.
 """
-from cuestage.i18n import tr
-from cuestage.mixers import MixerDriver, MixerError, OscLink, db_to_x32, x32_to_db, osc_decode, osc_encode, udp_discover
+from cuevivo.i18n import tr
+from cuevivo.mixers import MixerDriver, MixerError, OscLink, db_to_x32, x32_to_db, osc_decode, osc_encode, udp_discover
 
 
 PORT = 10024

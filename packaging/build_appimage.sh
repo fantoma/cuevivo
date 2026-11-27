@@ -15,7 +15,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/build"
 CACHE="$BUILD/cache"
 APPDIR="$BUILD/Cuevivo.AppDir"
-VERSION="$(sed -n 's/^__version__ *= *"\(.*\)"/\1/p' "$ROOT/cuestage/__init__.py")"
+VERSION="$(sed -n 's/^__version__ *= *"\(.*\)"/\1/p' "$ROOT/cuevivo/__init__.py")"
 VERSION="${VERSION:-dev}"
 OUT="$ROOT/dist/Cuevivo-${VERSION}-x86_64.AppImage"
 
@@ -79,7 +79,7 @@ cp "$DEBS/usr/bin/amixer" "$APPDIR/usr/fallback-bin/"          # quello di siste
 
 # ---------------------------------------------------------------- Cuevivo
 say "Cuevivo $VERSION"
-cp -r "$ROOT/cuestage" "$APPDIR/usr/app/"
+cp -r "$ROOT/cuevivo" "$APPDIR/usr/app/"
 cp "$ROOT/packaging/launch.py" "$APPDIR/usr/app/"
 find "$APPDIR" -name __pycache__ -prune -exec rm -rf {} +
 "$PY" -m compileall -q -j0 "$APPDIR/usr/app" "$APPDIR/usr/python/lib" >/dev/null || true

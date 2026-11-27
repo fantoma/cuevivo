@@ -14,10 +14,10 @@ i valori intermedi sono approssimati, ma rileggere e reinviare un livello lo rip
 02R96: stessi messaggi e stessi elementi di base della famiglia, ma la tabella dei parametri del 02R96
 NON è stata verificata: provare prima e, se necessario, correggere ELEMENTS e MODEL_BYTE qui sotto.
 """
-from cuestage.i18n import tr
+from cuevivo.i18n import tr
 import queue
 
-from cuestage.mixers import MixerDriver, MixerError, interp, resolve_midi_port
+from cuevivo.mixers import MixerDriver, MixerError, interp, resolve_midi_port
 
 try:
     import mido

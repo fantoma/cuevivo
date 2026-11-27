@@ -11,7 +11,7 @@ Set-Location $Root
 $Build = Join-Path $Root "build\windows"
 $Cache = Join-Path $Root "build\cache"
 New-Item -ItemType Directory -Force -Path $Build, $Cache, (Join-Path $Root "dist") | Out-Null
-$Version = (Select-String -Path "cuestage\__init__.py" -Pattern '__version__\s*=\s*"(.*)"').Matches[0].Groups[1].Value
+$Version = (Select-String -Path "cuevivo\__init__.py" -Pattern '__version__\s*=\s*"(.*)"').Matches[0].Groups[1].Value
 function Say($m) { Write-Host "==> $m" -ForegroundColor Cyan }
 
 $Py = if ($env:PYTHON) { $env:PYTHON } else { "py" }

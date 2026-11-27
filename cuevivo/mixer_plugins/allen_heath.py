@@ -17,10 +17,10 @@ SQ (documento «SQ MIDI Protocol», issue 5):
   - livelli: ingresso→LR 40 00–2F, gruppo→LR 40 30–3B, LR 4F 00, aux 4F 01–0C, mandate FX 4F 0D–10,
     matrici 4F 11–13, DCA 4F 20–27
 """
-from cuestage.i18n import tr
+from cuevivo.i18n import tr
 import time
 
-from cuestage.mixers import (MixerDriver, MixerError, NrpnParser, TcpMidiLink, interp, nrpn, tcp_scan)
+from cuevivo.mixers import (MixerDriver, MixerError, NrpnParser, TcpMidiLink, interp, nrpn, tcp_scan)
 
 AH_PORT = 51325
 QU_SYSEX_HEAD = bytes([0xF0, 0x00, 0x00, 0x1A, 0x50, 0x11, 0x01, 0x00])

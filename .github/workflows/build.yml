@@ -55,7 +55,7 @@ jobs:
       - name: Librerie Python
         run: python -m pip install -r requirements.txt pyflakes
       - name: Controllo statico
-        run: python -m pyflakes cuestage tests packaging/launch.py
+        run: python -m pyflakes cuevivo tests packaging/launch.py
       - name: Test di regressione
         run: python tests/test_smoke.py
       - name: Prova di avvio dai sorgenti
@@ -73,9 +73,9 @@ jobs:
       - uses: actions/checkout@v6
       - name: Il tag corrisponde alla versione?
         run: |
-          V=$(sed -n 's/^__version__ *= *"\(.*\)"/\1/p' cuestage/__init__.py)
+          V=$(sed -n 's/^__version__ *= *"\(.*\)"/\1/p' cuevivo/__init__.py)
           if [ "v$V" != "${GITHUB_REF_NAME}" ]; then
-            echo "::error::Il tag è ${GITHUB_REF_NAME} ma cuestage/__init__.py dice $V: allineali"; exit 1
+            echo "::error::Il tag è ${GITHUB_REF_NAME} ma cuevivo/__init__.py dice $V: allineali"; exit 1
           fi
       - uses: softprops/action-gh-release@v3
         with:

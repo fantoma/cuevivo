@@ -14,7 +14,7 @@
 set -euo pipefail
 
 cd "$(dirname "$(readlink -f "$0")")"
-INIT="cuestage/__init__.py"
+INIT="cuevivo/__init__.py"
 ISS="packaging/windows/cuestage.iss"
 
 R=$'\033[1;31m'; G=$'\033[1;32m'; Y=$'\033[1;33m'; C=$'\033[1;36m'; N=$'\033[0m'

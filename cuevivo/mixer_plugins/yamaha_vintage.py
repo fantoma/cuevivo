@@ -20,10 +20,10 @@ non si può leggere il livello dal mixer (si imposta a mano nella cue).
 Se sul mixer la tabella è stata cambiata, correggere FADER_CC / ON_CC qui sotto.
 La scala 0…127 ↔ dB è approssimata (0 = −∞, 103 ≈ 0 dB, 127 = +6 dB).
 """
-from cuestage.i18n import tr
+from cuevivo.i18n import tr
 import threading
 
-from cuestage.mixers import MixerDriver, MixerError, interp, resolve_midi_port
+from cuevivo.mixers import MixerDriver, MixerError, interp, resolve_midi_port
 
 try:
     import mido

@@ -24,8 +24,8 @@ import socket
 import threading
 import time
 
-from cuestage.i18n import tr
-from cuestage.mixers import MixerDriver, MixerError, WebSocketClient, tcp_scan
+from cuevivo.i18n import tr
+from cuevivo.mixers import MixerDriver, MixerError, WebSocketClient, tcp_scan
 
 PORT = 4455
 PORT_V4 = 4444                       # porta predefinita del plugin obs-websocket 4.x

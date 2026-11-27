@@ -5,7 +5,7 @@
 - ENV_PREFIX: prefisso delle variabili d'ambiente (es. ENV_PREFIX_LANG).
 - PROTOCOL_ID: identificativo nei dati scambiati (file dello show, bundle, cluster): non cambia mai, così
   versioni diverse continuano a riconoscersi.
-La cartella del codice (il pacchetto Python) resta «cuestage».
+La cartella del codice (il pacchetto Python) è «cuevivo» (fino alla 1.0.32 «cuestage»: vedi legacy.py).
 """
 import os
 import sys
@@ -67,7 +67,7 @@ def data_base(name=None, slug=None):
 
 
 # ------------------------------------------------------------------ dal nome precedente
-_COPY_SKIP = {".venv", "cuestage", "__pycache__", "run.sh", "requirements.txt", "README.md"}
+_COPY_SKIP = {".venv", "cuevivo", "cuestage", "__pycache__", "run.sh", "requirements.txt", "README.md"}
 
 
 def migrate_settings(app=None, legacy=None):

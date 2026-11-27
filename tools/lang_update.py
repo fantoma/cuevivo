@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Aggiorna i file di lingua (cuestage/lang/*.json) con i testi tr("…") del programma.
+"""Aggiorna i file di lingua (cuevivo/lang/*.json) con i testi tr("…") del programma.
 
     python3 tools/lang_update.py            aggiunge i testi nuovi (vuoti = da tradurre) e toglie quelli spariti
     python3 tools/lang_update.py --check    segnala soltanto: testi mancanti, segnaposto {0}… diversi
@@ -15,14 +15,14 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LANG = os.path.join(ROOT, "cuestage", "lang")
+LANG = os.path.join(ROOT, "cuevivo", "lang")
 PH = re.compile(r"\{(\d+)[^{}]*\}")
 
 
 def source_strings():
     """{testo italiano: [file:riga, …]} di tutti i tr("…") con testo letterale."""
     out = {}
-    for path in sorted(glob.glob(os.path.join(ROOT, "cuestage", "**", "*.py"), recursive=True)):
+    for path in sorted(glob.glob(os.path.join(ROOT, "cuevivo", "**", "*.py"), recursive=True)):
         tree = ast.parse(open(path, encoding="utf-8").read())
         for n in ast.walk(tree):
             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "tr" and n.args:

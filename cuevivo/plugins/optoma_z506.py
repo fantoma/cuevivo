@@ -13,8 +13,8 @@ Non c'è un otturatore meccanico: «Otturatore» usa l'AV mute (immagine nera).
 I codici ingresso variano tra i modelli Optoma: quelli indicati «da verificare» vanno provati sul
 proiettore (in caso di risposta «F» correggere la tabella INPUTS qui sotto).
 """
-from cuestage.i18n import tr
-from cuestage.projectors import ProjectorDriver, ProjectorError
+from cuevivo.i18n import tr
+from cuevivo.projectors import ProjectorDriver, ProjectorError
 
 
 class OptomaZ506(ProjectorDriver):

@@ -19,12 +19,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import numpy as np  # noqa: E402
-from cuestage.appinfo import settings as _app_settings  # noqa: E402
+from cuevivo.appinfo import settings as _app_settings  # noqa: E402
 from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
 
 app = QApplication.instance() or QApplication([])
 _app_settings().remove("last_show")
-from cuestage.system import data_dir  # noqa: E402
+from cuevivo.system import data_dir  # noqa: E402
 
 for f in glob.glob(os.path.join(data_dir(), ".*.autosave")):
     os.remove(f)
@@ -32,16 +32,16 @@ QMessageBox.question = staticmethod(lambda *a, **k: QMessageBox.Yes)
 QMessageBox.warning = staticmethod(lambda *a, **k: QMessageBox.Ok)
 QMessageBox.information = staticmethod(lambda *a, **k: QMessageBox.Ok)
 
-import cuestage.audio_engine as ae  # noqa: E402
+import cuevivo.audio_engine as ae  # noqa: E402
 ae.sd = None                                   # audio «silenzioso»: nessuna scheda richiesta
-from cuestage.main_window import MainWindow  # noqa: E402
-from cuestage.model import Cue, Show  # noqa: E402
+from cuevivo.main_window import MainWindow  # noqa: E402
+from cuevivo.model import Cue, Show  # noqa: E402
 
 TMP = tempfile.mkdtemp(prefix="cuestage-test-")
 FAILED = []
 
 # richiesta di collegamento di una secondaria: accettata con i permessi scelti dalla prova (JOIN["perms"])
-import cuestage.ui_cluster as _uc  # noqa: E402
+import cuevivo.ui_cluster as _uc  # noqa: E402
 JOIN = {"perms": None}
 
 
@@ -116,7 +116,7 @@ def t_save_load():
 
 def t_portable_paths():
     """Show salvato su un altro sistema (percorsi Windows) e percorsi ricevuti dal master."""
-    from cuestage.system import data_dir, local_path, portable_rel
+    from cuevivo.system import data_dir, local_path, portable_rel
     os.makedirs(os.path.join(TMP, "media"), exist_ok=True)
     f = tone(os.path.join("media", "win.wav"), sec=0.5)
     sh = Show()
@@ -316,8 +316,8 @@ def t_grid_solo_blind_groups(w):
 def t_history_versions(w):
     """Annulla / ripeti, ritorno a un punto della cronologia, versioni dello show con annotazioni."""
     from PySide6.QtWidgets import QInputDialog
-    from cuestage.history import MAX_STEPS
-    from cuestage.i18n import tr
+    from cuevivo.history import MAX_STEPS
+    from cuevivo.i18n import tr
     sh = Show()
     sh.settings["output_fullscreen"] = False
     w._set_show(sh)
@@ -447,8 +447,8 @@ def t_notice_and_addresses():
     """Avviso iniziale in tutte le lingue (con l'autore) e indirizzi di tutte le interfacce per il web."""
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QDialog, QLabel
-    from cuestage.ui_disclaimer import AUTHOR, NOTICE, DisclaimerDialog
-    from cuestage.webserver import local_addresses, local_interfaces
+    from cuevivo.ui_disclaimer import AUTHOR, NOTICE, DisclaimerDialog
+    from cuevivo.webserver import local_addresses, local_interfaces
     d = DisclaimerDialog("en", "1.2.3")
     text = " ".join(lab.text() for lab in d.findChildren(QLabel))
     assert AUTHOR == "Designed by Diego Fantoma" and AUTHOR in text and "1.2.3" in text
@@ -465,9 +465,9 @@ def t_notice_and_addresses():
     assert all(not ip.startswith("127.") for ip, _n in ifs)
     assert local_addresses() == ([ip for ip, _n in ifs] or ["127.0.0.1"])
     # impostazioni: tutte le interfacce nella tendina, le altre sotto il QR code
-    import cuestage.webserver as ws
-    from cuestage.ui_dialogs import SettingsDialog
-    from cuestage.model import DEFAULT_SETTINGS
+    import cuevivo.webserver as ws
+    from cuevivo.ui_dialogs import SettingsDialog
+    from cuevivo.model import DEFAULT_SETTINGS
     import copy
     orig = ws.local_interfaces
     ws.local_interfaces = lambda: [("192.168.1.20", "eth0"), ("10.0.0.5", "wlan0")]
@@ -490,9 +490,9 @@ def t_inspector_layout(w):
     file modificabile, dimensione e zoom della vista del crop."""
     from PySide6.QtCore import QPointF, Qt
     from PySide6.QtWidgets import QDoubleSpinBox, QInputDialog, QLineEdit
-    from cuestage.i18n import tr
-    from cuestage.inspector.presets import CuePresetBar
-    from cuestage.ui_cuelist import C_PLAYHEAD
+    from cuevivo.i18n import tr
+    from cuevivo.inspector.presets import CuePresetBar
+    from cuevivo.ui_cuelist import C_PLAYHEAD
     sh = Show()
     sh.settings["output_fullscreen"] = False
     vid = make_video("insp.mp4", sec=3)
@@ -562,7 +562,7 @@ def t_inspector_layout(w):
     sl.setValue(200)
     assert v.scale == 200.0
     v.scale_x = 150.0                                          # deformazione: larghezza al 150%
-    from cuestage.video_output import layer_geometry
+    from cuevivo.video_output import layer_geometry
     class _L:
         cue = v
         fit = v.fit
@@ -642,7 +642,7 @@ def t_inspector_layout(w):
     assert v.crop_l > 0 and abs(v.crop_l - v.crop_r) <= 1, (v.crop_l, v.crop_r)
     v.crop_l = v.crop_r = 0
     # «Tempi e loop»: grafico basso, miniature del video sotto la forma d'onda, conservate su disco
-    import cuestage.media as md
+    import cuevivo.media as md
     ins.tabs.setCurrentIndex(2)
     run(0.2)
     assert ins.timeline.height() == 114
@@ -650,7 +650,7 @@ def t_inspector_layout(w):
     run(0.2)
     assert ins.timeline.thumbs is not None and ins.timeline.thumbs[1] == md.thumb_count(3.0)
     # video: niente timeline dei keyframe nella scheda; fade e opacità si trascinano sulle miniature
-    from cuestage.ui_keyframes import KeyframeBar
+    from cuevivo.ui_keyframes import KeyframeBar
     page = ins.tabs.widget(2)
     assert not [k for k in page.findChildren(KeyframeBar) if k.isVisible()], "timeline dei keyframe ancora visibile"
     tl = ins.timeline
@@ -697,10 +697,10 @@ def t_inspector_layout(w):
     tl.drag = None
     assert len(v.op_curve) == 1 and abs(v.op_curve[0][1] - 0.25) < 0.03 and v.curve == [], (v.op_curve, v.curve)
     assert tl._hit(QPointF(tl.t2x(1.0), tl.op2y(v.op_curve[0][1]))) == ("opoint", 0)
-    from cuestage.media import curve_arrays, curve_value
+    from cuevivo.media import curve_arrays, curve_value
     assert abs(curve_value(curve_arrays(v.op_curve + [[2.0, 1.0]]), 1.5) - 0.625) < 0.01
     # la linea arancione segue la curva dei punti; l'anteprima del cursore usa la stessa opacità
-    from cuestage.engine import opacity_at
+    from cuevivo.engine import opacity_at
     v.op_curve = [[0.0, 0.2], [2.0, 0.8]]
     tl.update()
     assert tl._hit(QPointF((tl._env_points()[1] + tl._env_points()[2]) / 2, tl._env_points()[4])) != ("opacity",)
@@ -826,7 +826,7 @@ def t_inspector_layout(w):
     ins.markers_panel.reload()
     run(0.1)
     # fade delle azioni: dopo / prima del marker, dal precedente, fino al successivo (o IN / OUT)
-    from cuestage.markers import marker_window
+    from cuevivo.markers import marker_window
     ms_ = [{"t": 1.0, "action": "preset", "fade": 0.4}, {"t": 2.0, "action": "stop"}]
     assert marker_window(ms_, ms_[0], 0.0, 3.0) == (1.0, 0.4)
     ms_[0]["fade_mode"] = "before"
@@ -853,7 +853,7 @@ def t_inspector_layout(w):
     sh2 = Show.from_data(sh.to_data(None), None)
     assert sh2.by_id(a.id).markers[0]["name"] == "M1"         # i marker si salvano con lo show
     # tabella dei marker sotto la riga di IN/OUT/fade/loop: nome, tempo, note, azione
-    from cuestage.ui_markers import MarkersPanel
+    from cuevivo.ui_markers import MarkersPanel
     from PySide6.QtWidgets import QComboBox, QDoubleSpinBox
     mp = ins.markers_panel
     assert isinstance(mp, MarkersPanel) and len(mp._rows) == 1
@@ -862,7 +862,7 @@ def t_inspector_layout(w):
     names[0].setText("Tuono")
     names[0].editingFinished.emit()
     assert a.markers[0]["name"] == "Tuono"
-    from cuestage.ui_markers import TimeSpin
+    from cuevivo.ui_markers import TimeSpin
     spins = [x for x in mp.findChildren(TimeSpin) if x.isVisible()]
     spins[0].setValue(0.4)                                     # colonna del tempo (minuti:secondi)
     assert spins[0].text() == "00:00.40"
@@ -904,7 +904,7 @@ def t_inspector_layout(w):
 def t_languages():
     """File di lingua: completi, con gli stessi segnaposto {0}… dell'italiano; cambio di lingua e ritorno."""
     import importlib.util
-    import cuestage.i18n as i18n
+    import cuevivo.i18n as i18n
     spec = importlib.util.spec_from_file_location("lang_update", os.path.join(ROOT, "tools", "lang_update.py"))
     lu = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(lu)
@@ -930,7 +930,7 @@ def t_languages():
 
 def t_wav_without_ffmpeg():
     """I WAV si leggono anche se ffprobe/ffmpeg non rispondono (lettura diretta del file)."""
-    import cuestage.media as media
+    import cuevivo.media as media
     path = tone("noff.wav", sec=1, freq=440)
     ref = media.decode_audio(path, channels=1)
     old = media.FFPROBE, media.FFMPEG
@@ -949,8 +949,8 @@ def t_wav_without_ffmpeg():
 
 def t_ducking(w):
     """Ducking: gate/attacco/rilascio, riduzione della cue e del gruppo, Master ducking, finestra, icona."""
-    from cuestage.ducking import Ducker, duck_settings
-    from cuestage.ui_duckicon import duck_state
+    from cuevivo.ducking import Ducker, duck_settings
+    from cuevivo.ui_duckicon import duck_state
     d = Ducker()
     d.cfg = duck_settings({"ducking": {"threshold_db": -30, "attack_ms": 100, "hold_ms": 200,
                                          "release_ms": 500}})
@@ -989,7 +989,7 @@ def t_ducking(w):
     def vmeter():
         i = w.ctrl.instances.get(c.id)
         return float(i.voice.meter.max()) if i is not None and i.voice is not None else -1.0
-    import cuestage.media as media
+    import cuevivo.media as media
     if not wait_until(lambda: vmeter() > 0.02, 15):
         raise AssertionError((vmeter(), msgs, duck.error, w.audio.status, os.path.getsize(c.file),
                               media.probe(c.file), media.FFMPEG, media.FFPROBE, media.LAST_PROBE_ERROR))
@@ -1065,7 +1065,7 @@ def t_pfl_buttons(w):
     """Pulsante PFL: colonna della lista e pulsante nella casella del GRID (non avvia la cue)."""
     from PySide6.QtCore import QPoint, Qt
     from PySide6.QtTest import QTest
-    from cuestage.ui_cuelist import C_PFL
+    from cuevivo.ui_cuelist import C_PFL
     sh = Show()
     sh.settings["output_fullscreen"] = False
     w._set_show(sh)
@@ -1121,7 +1121,7 @@ def t_pfl_buttons(w):
 
 def t_preview_and_mixer_duck(w):
     """Preascolto (cue e gruppi, fuori dal master, col suo volume) e fader del mixer agganciati al ducking."""
-    from cuestage.model import db_to_lin
+    from cuevivo.model import db_to_lin
     sh = Show()
     sh.settings["output_fullscreen"] = False
     sh.settings["preview"] = {"enabled": True, "device": "", "ch_l": 1, "ch_r": 2, "db": 0.0}
@@ -1236,7 +1236,7 @@ def t_preview_and_mixer_duck(w):
 
 def make_video(name, sec=4):
     import subprocess
-    from cuestage.media import FFMPEG
+    from cuevivo.media import FFMPEG
     path = os.path.join(TMP, name)
     subprocess.run([FFMPEG, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25",
                     "-f", "lavfi", "-i", "sine=frequency=500:sample_rate=48000", "-t", str(sec),
@@ -1281,7 +1281,7 @@ def t_video_preload(w):
 
 def t_tap_tempo(w):
     """Tap Tempo: BPM dalle battute; Loop e Sequence avanzano sul battito; i modi non adatti lo ignorano."""
-    from cuestage.engine import tap_active
+    from cuevivo.engine import tap_active
     for mode in ("loop", "sequence"):
         sh = Show()
         sh.settings["output_fullscreen"] = False
@@ -1346,7 +1346,7 @@ def t_mixer_x32(w):
     assert abs(sent["/ch/05/mix/fader"][0] - 0.5) < 0.01, sent
     # azione «Ducking»: il livello normale si legge dal mixer come per l'azione Fader
     from PySide6.QtWidgets import QDoubleSpinBox, QPushButton
-    from cuestage.i18n import tr
+    from cuevivo.i18n import tr
     d = Cue("mixer", number="3", name="Duck", mix_target="m", mix_action="duck", mix_kind="ch",
             mix_channels="5", mix_level=0.0, mix_duck_db=12.0)
     sh.cues.append(d)
@@ -1366,8 +1366,8 @@ def t_roland_video(w):
     """Regie video Roland V-8HD / V-1HD: impostazioni proprie, cue «Regia video», byte MIDI esatti (porta finta)."""
     import mido
     from PySide6.QtWidgets import QComboBox, QPushButton, QToolButton
-    from cuestage.i18n import tr
-    from cuestage.ui_mixers import ControlsBox, MixersDialog, _ctl_text
+    from cuevivo.i18n import tr
+    from cuevivo.ui_mixers import ControlsBox, MixersDialog, _ctl_text
     sent = []
 
     class FakeOut:
@@ -1483,8 +1483,8 @@ def t_obs_studio(w):
 
 def _obs_run(w, proto):
     from sims import OBSSim
-    from cuestage.mixers import MixerRegistry
-    from cuestage.i18n import tr
+    from cuevivo.mixers import MixerRegistry
+    from cuevivo.i18n import tr
     obs = OBSSim(password="segreta", protocol=proto)
     try:
         cls = MixerRegistry().load().get("obs_studio")
@@ -1556,8 +1556,8 @@ def t_atem(w):
     """Blackmagic ATEM Mini Pro simulato (UDP 9910): stato iniziale, cue «Regia video», conferma persa e
     ritrasmessa, ATEM occupato, ricerca in rete; Mini ed Extreme con i loro comandi."""
     from sims import ATEMSim
-    from cuestage.mixers import MixerRegistry
-    from cuestage.i18n import tr
+    from cuevivo.mixers import MixerRegistry
+    from cuevivo.i18n import tr
     cls = MixerRegistry().load().get("blackmagic_atem")
     assert cls is not None and cls.SWITCHER
     atem = ATEMSim(product="ATEM Mini Pro")
@@ -1637,8 +1637,8 @@ def t_midi_profiles(w):
     """MIDI out: MMC, clock (start/continue/stop), Song Position; profilo Akai MPC nell'ispettore: il comando
     scelto si aggiunge come testo in fondo ai messaggi."""
     from PySide6.QtWidgets import QSpinBox
-    from cuestage.midi_profiles import profiles, render
-    from cuestage.remote import parse_midi_script
+    from cuevivo.midi_profiles import profiles, render
+    from cuevivo.remote import parse_midi_script
     msgs = [m for _w, m in parse_midi_script("mmc all deferred_play\nmmc 3 locate 0 2 5 1\nstart\ncontinue\nstop\n"
                                               "spp 300\nmmc all record")]
     assert msgs == [[0xF0, 0x7F, 0x7F, 0x06, 0x03, 0xF7], [0xF0, 0x7F, 3, 0x06, 0x44, 0x06, 0x01, 0, 2, 5, 1, 0, 0xF7],
@@ -1752,7 +1752,7 @@ def t_live_curve(w):
     from PySide6.QtWidgets import QSlider
     vo = w.ctrl.instances[a.id].voice
     m0 = vo.mtx.copy()
-    from cuestage.inspector.media import CueMeter
+    from cuevivo.inspector.media import CueMeter
     meter = [m_ for m_ in ins.findChildren(CueMeter) if m_.isVisible()][-1]
     vo.meter[:] = 0.5                                       # il vumeter accanto al fader legge la voce della cue
     meter.poll()
@@ -1806,8 +1806,8 @@ def t_loop_edit(w):
     import numpy as np
     from PySide6.QtCore import QPointF
     from PySide6.QtWidgets import QDoubleSpinBox
-    from cuestage.audio_engine import SR, Voice
-    from cuestage.media import curve_arrays
+    from cuevivo.audio_engine import SR, Voice
+    from cuevivo.media import curve_arrays
     # crossfade nel mixer: coda e inizio del loop si sommano a potenza costante, poi si riparte da ls + xf
     data = np.zeros((SR * 4, 1), np.float32)
     data[:SR] = 1.0                                           # 1 nel primo secondo (inizio del loop), 0 dopo
@@ -1911,7 +1911,7 @@ def t_loop_edit(w):
     run(0.2)
     w.ctrl.start_cue(ex)                                                   # target fermo: avviso
     run(0.1)
-    from cuestage.i18n import tr
+    from cuevivo.i18n import tr
     assert tr("Esci dal loop: la cue «{0}» non sta suonando in loop", a.label()) in msgs, msgs
     w.ctrl.message.disconnect(msgs.append)
     w.ctrl.stop_all(0)
@@ -1988,7 +1988,7 @@ def t_volume_field(w):
 def t_column_widths(w):
     """Colonne della lista ridimensionabili (anche # , Tipo, Nome) e larghezze ricordate al riavvio."""
     from PySide6.QtWidgets import QHeaderView
-    from cuestage.ui_cuelist import C_NAME, C_NUM, C_TYPE
+    from cuevivo.ui_cuelist import C_NAME, C_NUM, C_TYPE
     hh = w.table.horizontalHeader()
     for c in (C_NUM, C_TYPE, C_NAME):
         assert hh.sectionResizeMode(c) == QHeaderView.Interactive, c
@@ -2010,7 +2010,7 @@ def t_column_widths(w):
 def t_ducking_open_nonblocking():
     """Ingresso del ducking che non risponde (es. scheda bloccata): l'apertura non blocca l'interfaccia oltre
     pochi secondi; se poi si apre entra in funzione, se nel frattempo è stato chiuso non resta aperto."""
-    from cuestage.ducking import Ducker
+    from cuevivo.ducking import Ducker
     d = Ducker()
     d.OPEN_TIMEOUT = 0.3
     d.cfg = {"device": "", "channel": 1}
@@ -2147,7 +2147,7 @@ def t_video_xfade_fades(w):
 def t_levels_zero(w):
     """«Volumi uscite a 0 dB»: volume della cue e volumi delle uscite a 0 dB (anche mentre suona)."""
     from PySide6.QtWidgets import QPushButton
-    from cuestage.i18n import tr
+    from cuevivo.i18n import tr
     sh = Show()
     sh.settings["output_fullscreen"] = False
     a = Cue("audio", number="1", name="Z", file=tone("zero.wav", sec=10))
@@ -2239,8 +2239,8 @@ def t_rotation(w):
     from PySide6.QtCore import QRectF
     from PySide6.QtGui import QColor, QImage, QPainter
     from PySide6.QtWidgets import QDoubleSpinBox, QPushButton
-    from cuestage import keyframes as kfm
-    from cuestage.video_output import Layer, layer_quad, draw_layer
+    from cuevivo import keyframes as kfm
+    from cuevivo.video_output import Layer, layer_quad, draw_layer
     sh = Show()
     sh.settings["output_fullscreen"] = False
     c = Cue("image", number="1", name="R")
@@ -2596,7 +2596,7 @@ def t_list_ctrl_copy(w):
     """Lista: Ctrl + trascina duplica (un gruppo con le sue cue; dentro un gruppo la copia ne diventa membro)."""
     import json
     from PySide6.QtCore import QMimeData, QModelIndex, Qt
-    from cuestage.ui_cuelist import ROW_MIME
+    from cuevivo.ui_cuelist import ROW_MIME
     sh = Show()
     sh.settings["output_fullscreen"] = False
     a = Cue("memo", number="1", name="A")
@@ -2635,9 +2635,9 @@ def t_list_drop_other_lists(w):
     trascinamento; Opzioni e BLIND non allargano il GRID."""
     import json
     from PySide6.QtCore import QMimeData, QModelIndex, Qt
-    from cuestage.ui_cuelist import CUES_MIME, hand_pixmap
+    from cuevivo.ui_cuelist import CUES_MIME, hand_pixmap
     assert not hand_pixmap().isNull() and not hand_pixmap(True).isNull()
-    from cuestage.ui_cuelist import drag_image
+    from cuevivo.ui_cuelist import drag_image
     pm, hot = drag_image(3, with_hand=True)                         # Wayland: la manina segue il puntatore
     assert not pm.isNull() and pm.width() > 32 and (hot.x(), hot.y()) == (14, 14)
     pm2, _hot2 = drag_image(1, copy=True)
@@ -2702,7 +2702,7 @@ def t_fx_dsp():
     """Effetti interni: EQ (banda, passa-alto 24 dB/oct, curva), compressore, gate, delay, riverbero; il rack
     conserva lo stato quando cambiano i parametri e rispetta ordine e bypass."""
     import numpy as _np
-    from cuestage import dsp
+    from cuevivo import dsp
     SR = dsp.SR
 
     def sine(f, db, sec=1.0):
@@ -2767,9 +2767,9 @@ def t_fx_engine(w):
     """Rack della cue e bus effetti nel motore: mandata al bus con riverbero, coda che continua dopo la fine
     della cue, secondo STOP che spegne le code, preset audio con rack e mandate, preset del bus, scheda
     Effetti e finestre dei parametri."""
-    from cuestage import dsp
-    from cuestage.buses import BusView, new_bus
-    from cuestage.ui_fx import _WINDOWS, BusDialog, RackEditor
+    from cuevivo import dsp
+    from cuevivo.buses import BusView, new_bus
+    from cuevivo.ui_fx import _WINDOWS, BusDialog, RackEditor
     sh = Show()
     sh.settings["output_fullscreen"] = False
     c = Cue("audio", number="1", name="FX", file=tone("fx.wav", sec=1.0))
@@ -2849,9 +2849,9 @@ def t_fx_gui_diag(w):
     d'ingresso e uscita; Aiuto › Diagnostica con carico, buffer audio ed errori del motore."""
     from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
     from PySide6.QtGui import QMouseEvent, QWheelEvent
-    from cuestage import dsp
-    from cuestage.i18n import tr
-    from cuestage.ui_fx import DynGraph, EqCurve, LevelMeter, open_fx_window
+    from cuevivo import dsp
+    from cuevivo.i18n import tr
+    from cuevivo.ui_fx import DynGraph, EqCurve, LevelMeter, open_fx_window
     sh = Show()
     sh.settings["output_fullscreen"] = False
     c = Cue("audio", number="1", name="Dyn", file=tone("dyn.wav", sec=5))
@@ -2927,10 +2927,10 @@ def t_bus_sources_control(w):
     """Bus: trim di ogni cue sorgente, ingresso fisico con trim, cue «Controllo bus» (sfuma volume e parametri),
     Cambia preset con un bus come target, sorgenti nella finestra dei bus."""
     import numpy as _np
-    from cuestage.buses import BusView, new_bus
-    from cuestage.i18n import tr
-    from cuestage.ui_cuelist import C_TARGET
-    from cuestage.ui_fx import BusDialog
+    from cuevivo.buses import BusView, new_bus
+    from cuevivo.i18n import tr
+    from cuevivo.ui_cuelist import C_TARGET
+    from cuevivo.ui_fx import BusDialog
     sh = Show()
     sh.settings["output_fullscreen"] = False
     c = Cue("audio", number="1", name="Src", file=tone("bsrc.wav", sec=4))
@@ -3044,7 +3044,7 @@ def t_audio_cache():
     riusa alla seconda apertura e conserva i dettagli sotto i 16 bit di un WAV a 24 bit."""
     import wave
     import numpy as _np
-    from cuestage import media
+    from cuevivo import media
     path = tone("cache.wav", sec=2)
     a = media.decode_audio_cached(path, channels=1)
     ref = media.decode_audio(path, channels=1)
@@ -3076,8 +3076,8 @@ def t_video_engines(w):
     quando servono (FrameRef), stessa geometria della GPU e del classico (crop, prospettiva, 4 angoli)."""
     from PySide6.QtCore import QPointF, QRectF
     from PySide6.QtGui import QImage
-    from cuestage import video_output as vo
-    from cuestage.video_quick import layer_matrix, quick_possible
+    from cuevivo import video_output as vo
+    from cuevivo.video_quick import layer_matrix, quick_possible
     eng = vo.resolve_engine("auto")
     if not quick_possible():
         assert eng in ("gl", "raster")
@@ -3092,7 +3092,7 @@ def t_video_engines(w):
     assert vo.gpu_record(("NVIDIA Corporation", "NVIDIA GeForce RTX 3060/PCIe/SSE2", "4.6"))["software"] is False
     assert vo.gpu_record(("Mesa", "llvmpipe (LLVM 20.1.2, 256 bits)", "4.5"))["software"] is True
     d = w.diagnostics_dialog()
-    from cuestage.i18n import tr
+    from cuevivo.i18n import tr
     assert tr("GPU") + ":" in d.text()
     d.close()
     out.detach()
@@ -3134,7 +3134,7 @@ def t_video_engines(w):
 
 def t_perf_eval(w):
     """Valutazione delle prestazioni: i passi girano senza bloccare e danno un buffer consigliato."""
-    from cuestage import perf
+    from cuevivo import perf
     j = perf.Jitter(period=0.002, dur=0.3)
     j.start()
     assert wait_until(j.done, 3)
@@ -3163,8 +3163,8 @@ def t_small_buffers(w):
     (non se il mixer vero ha avuto un picco più lungo della coda) e con lo stesso suono dei blocchi grandi, effetti
     compresi (rack della cue e bus con riverbero e delay)."""
     import numpy as _np
-    from cuestage import dsp, perf
-    from cuestage.audio_engine import BUFFER_LABELS, BUFFERS, AudioEngine, BusRuntime, Voice
+    from cuevivo import dsp, perf
+    from cuevivo.audio_engine import BUFFER_LABELS, BUFFERS, AudioEngine, BusRuntime, Voice
     assert BUFFERS["minima"][0] == 128 and BUFFERS["molto_bassa"][0] == 256 and list(BUFFERS)[0] == "minima"
     r = {"jitter": {"p50_ms": 0.15, "p99_ms": 0.3, "max_ms": 0.6, "n": 1000},
          "mixer": {"voice_ms": 0.05, "voice_fx_ms": 0.2, "bus_reverb_ms": 0.25}}
@@ -3192,7 +3192,7 @@ def t_small_buffers(w):
         a, b_ = run_blocks(512), run_blocks(128)
         assert _np.abs(a).max() > 0.01 and _np.abs(a - b_).max() < 1e-3, float(_np.abs(a - b_).max())
     from PySide6.QtWidgets import QComboBox
-    from cuestage.ui_dialogs import SettingsDialog
+    from cuevivo.ui_dialogs import SettingsDialog
     d = SettingsDialog(dict(w.show_data.settings), None, w)
     assert d.abuf.findData("minima") >= 0 and d.abuf.findData("molto_bassa") >= 0 and isinstance(d.abuf, QComboBox)
     d.close()
@@ -3210,8 +3210,8 @@ def t_delay_pitch(w):
     giù), solo sull'uscita tutte le ripetizioni hanno lo stesso spostamento; il tempo delle ripetizioni non
     cambia, il risultato non dipende dal buffer; il pitch si sfuma con la cue Controllo bus."""
     import numpy as _np
-    from cuestage import dsp
-    from cuestage.buses import control_params, new_bus
+    from cuevivo import dsp
+    from cuevivo.buses import control_params, new_bus
     if not dsp.available():
         return
     SR = dsp.SR
@@ -3276,8 +3276,8 @@ def t_bus_live_edit(w):
     Ispettore: un bus creato con la cue selezionata compare subito nell'elenco. Preset della cue: «Applica»
     aggiorna le mandate e il rack mostrati nella scheda Effetti."""
     from PySide6.QtWidgets import QComboBox, QDoubleSpinBox
-    from cuestage.inspector.presets import PresetBar
-    from cuestage.ui_fx import _WINDOWS, RackEditor, SendsEditor
+    from cuevivo.inspector.presets import PresetBar
+    from cuevivo.ui_fx import _WINDOWS, RackEditor, SendsEditor
     sh = Show()
     sh.settings["output_fullscreen"] = False
     c = Cue("audio", number="1", name="Src", file=tone("ble.wav", sec=3))
@@ -3315,7 +3315,7 @@ def t_bus_live_edit(w):
     sh.cues.append(bc2)
     w.ctrl.start_cue(bc2)
     run(0.2)
-    from cuestage.i18n import tr as _tr                   # (il messaggio è tradotto: si cerca nella lingua in uso)
+    from cuevivo.i18n import tr as _tr                   # (il messaggio è tradotto: si cerca nella lingua in uso)
     gone = _tr("Controllo bus '{0}': {1} effetti indicati nella cue non ci sono più nel bus (tolti o ricreati dopo "
                "aver preparato la cue): riapri la cue e scegli di nuovo i parametri").split("{1}")[1][:20]
     assert any("Orfana" in m and gone in m for _t, m in list(w.ctrl.log)), gone
@@ -3398,7 +3398,7 @@ def t_bus_live_edit(w):
     se = [x for x in ins.findChildren(SendsEditor) if b["id"] in x.rows and x.isVisible()][0]
     se.rows[b["id"]][0].setValue(-6.0)
     # mandata con fader orizzontale: 0 dB a tre quarti della corsa, in fondo «spenta», doppio clic = 0 dB
-    from cuestage.ui_fx import SendFader
+    from cuevivo.ui_fx import SendFader
     fd = se.rows[b["id"]][0]
     assert isinstance(fd, SendFader) and c.sends[0]["db"] == -6.0
     for db in (-60.0, -30.0, -6.0, 0.0, 6.0, 12.0):
@@ -3441,7 +3441,7 @@ def t_bus_live_edit(w):
     run(0.2)
     sh.cues.remove(pc)
     # keyframe audio con preset: le mandate seguono il preset in uso (e sfumano tra due keyframe)
-    from cuestage import keyframes as kf
+    from cuevivo import keyframes as kf
     c.sends = [{"bus": b["id"], "db": -30.0, "pre": False}]
     bar._store("B")
     c.sends = []
@@ -3465,8 +3465,8 @@ def t_bus_control_overlap(w):
     disturbano), la più recente prende in carico le voci che un'altra sta ancora sfumando; −60 dB = effetto
     spento. Cambia preset con mandate: le mandate sfumano nella durata. Come lo show d'esempio: livello del delay
     a −60 in 3 s, poi (dopo 3,5 s) di nuovo a 0 dB in 5 s."""
-    from cuestage import dsp
-    from cuestage.buses import new_bus
+    from cuevivo import dsp
+    from cuevivo.buses import new_bus
     sh = Show()
     sh.settings["output_fullscreen"] = False
     b = new_bus(sh, "Bus 1", ("delay",))
@@ -3663,7 +3663,7 @@ def t_normalize(w):
     import math as _m
     import wave as _wave
     import numpy as _np
-    from cuestage import loudness
+    from cuevivo import loudness
 
     def wav(name, amp, sec=6):
         path = os.path.join(TMP, name)
@@ -3751,7 +3751,7 @@ def t_normalize(w):
     app.sendEvent(dial, QWheelEvent(c_, c_, QPoint(0, 0), QPoint(0, -120), Qt.NoButton, Qt.NoModifier,
                                     Qt.NoScrollPhase, False))
     assert abs(b.out_trim_db - t0) < 1e-6
-    from cuestage.ui_matrix import MatrixEditor
+    from cuevivo.ui_matrix import MatrixEditor
     mxs = [x for x in w.inspector.findChildren(MatrixEditor) if x.isVisible()]
     assert mxs                                               # la manopola sta a destra della matrice
     mr = mxs[0].mapTo(w.inspector, QPoint(mxs[0].width(), 0)).x()
@@ -3798,7 +3798,7 @@ def t_missing_files(w):
     """File › Trova file mancanti: all'apertura compare l'elenco; ricerca per nome in una cartella (vince il
     percorso più simile), file indicato a mano con lo stesso spostamento provato sugli altri, ricollegamento."""
     import wave as _wave
-    from cuestage.ui_missing import best_match, default_roots, missing_cues, relocate
+    from cuevivo.ui_missing import best_match, default_roots, missing_cues, relocate
 
     def wav(path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -3871,7 +3871,7 @@ def t_rt_gc(w):
     il thread audio prova ad alzare la priorità; tutto in Diagnostica."""
     import gc as _gc
     import threading as _th
-    from cuestage import rt
+    from cuevivo import rt
     sh = Show()
     sh.settings["output_fullscreen"] = False
     sh.cues = [Cue("memo", number=str(i), name=f"Nota {i}") for i in range(300)]
@@ -3893,10 +3893,10 @@ def t_rt_gc(w):
     ok, desc = res[0]
     assert isinstance(ok, bool) and desc, res
     assert 0 < sys.getswitchinterval() <= 0.0021
-    from cuestage.ui_diag import DiagnosticsDialog
+    from cuevivo.ui_diag import DiagnosticsDialog
     d = DiagnosticsDialog(w)
     d.refresh()
-    from cuestage.i18n import tr as _tr
+    from cuevivo.i18n import tr as _tr
     assert _tr("Garbage collector") in d.info.text()
     d.reset()
     assert rt.gc_stats()["count"] == 0
@@ -3985,8 +3985,8 @@ def t_newer_show(w):
     """Show salvato da una versione più recente: avviso all'apertura; cue di tipo sconosciuto come Memo (non
     partono); campi sconosciuti di show, impostazioni, cue, PANEL e versioni conservati quando si salva."""
     import json as _json
-    from cuestage import __version__
-    from cuestage.model import _ver_tuple
+    from cuevivo import __version__
+    from cuevivo.model import _ver_tuple
     assert _ver_tuple("1.0.13") < _ver_tuple("1.0.14") < _ver_tuple("1.1") and _ver_tuple("2.0b1") > _ver_tuple("1.9")
     sh = Show()
     sh.settings["output_fullscreen"] = False
@@ -4042,7 +4042,7 @@ def t_screen_identity(w):
     """Schermo di uscita riconosciuto per identità (produttore, modello, n. di serie, porta) anche se cambia
     l'ordine; schermo non collegato: ultimo schermo e avviso; schermi collegati e staccati nel registro."""
     from PySide6.QtCore import QRect
-    from cuestage import screens as scr
+    from cuevivo import screens as scr
 
     class Fake:
         def __init__(self, name, man, model, serial, x=0, w=1920, h=1080):
@@ -4117,7 +4117,7 @@ def t_screen_identity(w):
 def t_rename_compat(w):
     """Cambio di nome del programma: variabili d'ambiente, preferenze e cartella dei dati riprese dal nome
     precedente; programmi OSC con lo spazio dei nomi vecchio o nuovo; PIN web con l'intestazione vecchia."""
-    from cuestage import appinfo
+    from cuevivo import appinfo
     from PySide6.QtCore import QSettings
     os.environ[f"{appinfo.LEGACY[0][2]}_PROVA_NOME"] = "1"
     try:
@@ -4162,7 +4162,7 @@ def t_rename_compat(w):
         else:
             os.environ["HOME"] = old_home
     # programmi OSC: anche con lo spazio dei nomi del nome nuovo; le risposte usano il loro
-    from cuestage import remote as _remote
+    from cuevivo import remote as _remote
     sent = []
     orig_ns, orig_send = appinfo.OSC_NAMESPACES, _remote.osc_send_args
     appinfo.OSC_NAMESPACES = ("/cuestage", "/nuovonome")
@@ -4197,7 +4197,7 @@ def t_group_go_xfade(w):
         wf.setsampwidth(2)
         wf.setframerate(48000)
         wf.writeframes(_np.repeat(x[:, None], 2, axis=1).tobytes())
-    from cuestage.engine import go_xfade_time
+    from cuevivo.engine import go_xfade_time
     for on in (True, False):
         sh = Show()
         sh.settings["output_fullscreen"] = False
@@ -4241,7 +4241,7 @@ def t_link_cue(w):
     import wave as _wave
     import numpy as _np
     from PySide6.QtCore import Qt
-    from cuestage.model import LinkCue, link_target_ok
+    from cuevivo.model import LinkCue, link_target_ok
     path = os.path.join(TMP, "link.wav")
     x = (_np.sin(_np.arange(48000 * 10) / 48000 * 2 * _np.pi * 440) * 6000).astype(_np.int16)
     with _wave.open(path, "wb") as wf:
@@ -4345,7 +4345,7 @@ def t_link_cue(w):
     lk.forget_original()
     n0 = len(w.ctrl.log)
     assert w.ctrl.start_cue(lk) is None and lk.is_broken() and "⚠" in lk.name
-    from cuestage.i18n import tr as _tr
+    from cuevivo.i18n import tr as _tr
     want = _tr("Collegamento '{0}': la cue originale non c'è più", lk.number or lk.id)
     assert any(m == want for _t, m in list(w.ctrl.log)[n0:])
     del w.ask_links_on_delete
@@ -4358,7 +4358,7 @@ def t_stinger(w):
     loop, crossfade tra blocchi, cambio di tipo, cancellazione della cue PRE."""
     import wave as _wave
     import numpy as _np
-    from cuestage.model import LinkCue
+    from cuevivo.model import LinkCue
 
     def wav(name, sec):
         path = os.path.join(TMP, name)
@@ -4469,7 +4469,7 @@ def t_disable(w):
     """Cue, gruppi e PANEL disabilitati: non partono in nessun modo, il GO li salta, chi li segue «con/dopo la
     precedente» parte come se non ci fossero; testo grigio e barrato; salvataggio; collegamenti."""
     from PySide6.QtCore import Qt
-    from cuestage.model import LinkCue
+    from cuevivo.model import LinkCue
     sh = Show()
     sh.settings["output_fullscreen"] = False
     a = Cue("wait", number="1", name="A", duration=5.0)
@@ -4553,8 +4553,8 @@ def t_text_srt(w):
     più lingue con la lingua dello show cambiata dal vivo, tempi seguiti dalla posizione del video, controllo
     dei tempi rispetto alla durata del file."""
     import subprocess
-    from cuestage import srt
-    from cuestage.media import FFMPEG
+    from cuevivo import srt
+    from cuevivo.media import FFMPEG
     base = make_video("srt_base.mp4", sec=4)
     subs = {"ita": "1\n00:00:00,300 --> 00:00:01,500\nUno\n\n2\n00:00:02,000 --> 00:00:03,500\n<i>Due</i>\n",
             "eng": "1\n00:00:00,300 --> 00:00:01,500\nOne\n\n2\n00:00:02,000 --> 00:00:03,500\nTwo\n"}
@@ -4633,8 +4633,8 @@ def t_text_srt(w):
 def t_text_rec(w):
     """Sequenza di frasi con «Memorizza i tempi»: ogni GO registra i tempi sul file del video agganciato;
     la finestra Tempi e SRT li sposta, li esporta e trasforma la cue in sottotitoli a tempo."""
-    from cuestage import srt
-    from cuestage.ui_subs import TimesDialog
+    from cuevivo import srt
+    from cuevivo.ui_subs import TimesDialog
     path = make_video("rec.mp4", sec=6)
     sh = Show()
     sh.settings["output_fullscreen"] = False
@@ -4688,8 +4688,8 @@ def t_text_no_master(w):
     """Testo «non inviare allo schermo master»: solo nell'anteprima sul master e su uno slave di ridondanza,
     sullo schermo di uno slave normale."""
     from PySide6.QtGui import QImage, QPainter
-    from cuestage.outputs import secondary
-    from cuestage.video_output import render
+    from cuevivo.outputs import secondary
+    from cuevivo.video_output import render
     sh = Show()
     sh.settings["output_fullscreen"] = False
     t = Cue("text", number="1", name="Sopratitoli", text_content="Uno\n\nDue", text_no_master=True,
@@ -4751,7 +4751,7 @@ def t_text_no_master(w):
 def t_text_local_lang(w):
     """Lingua dei sottotitoli di questa istanza (es. uno slave): vince sulla lingua dello show, non su quella
     fissata nella cue; resta nelle preferenze; menu e OSC /text/lang/local."""
-    from cuestage import srt
+    from cuevivo import srt
     sh = Show()
     sh.settings["output_fullscreen"] = False
     sh.settings["sub_lang"] = "it"
@@ -4784,8 +4784,8 @@ def t_update_check(w):
     la scritta rossa che apre la pagina; con una versione uguale o più vecchia (o senza rete) niente."""
     import http.server
     import threading
-    from cuestage.i18n import tr
-    from cuestage.update_check import PAGE_URL, UpdateChecker, is_newer, parse_version
+    from cuevivo.i18n import tr
+    from cuevivo.update_check import PAGE_URL, UpdateChecker, is_newer, parse_version
     assert parse_version("1.0.32\n") == "1.0.32" and parse_version('{"version": "v1.1.0"}') == "1.1.0"
     assert parse_version("<html>errore</html>") is None
     assert is_newer("1.0.32", "1.0.31") and is_newer("1.1", "1.0.31") and not is_newer("1.0.31", "1.0.31")
@@ -4822,8 +4822,8 @@ def t_update_check(w):
         assert up.label.x() > g.right(), (up.label.x(), g.right())
         # statistiche d'uso: versione, sistema, architettura, codice anonimo stabile
         import urllib.parse as _up
-        from cuestage import __version__
-        from cuestage.update_check import arch, os_family
+        from cuevivo import __version__
+        from cuevivo.update_check import arch, os_family
         qs = [_up.parse_qs(_up.urlparse(p).query) for p, _ua in seen]
         assert len(qs) >= 2 and all(q["v"] == [__version__] and q["os"] == [os_family()] and q["arch"] == [arch()]
                                     and q["osver"][0] and len(q["id"][0]) >= 16 for q in qs), seen
@@ -4841,7 +4841,7 @@ def t_update_check(w):
 
 def t_active_view(w):
     """Cue attive: dimensione delle righe, filtri (niente gruppi, solo media), finestra separata e riaggancio."""
-    from cuestage.ui_cuelist import ActivePanel
+    from cuevivo.ui_cuelist import ActivePanel
     sh = Show()
     sh.settings["output_fullscreen"] = False
     a = tone("act.wav", 4)
@@ -4956,7 +4956,7 @@ def t_snapshots(w):
     """Copie precedenti: ogni salvataggio tiene la versione sovrascritta (non i doppioni), al massimo
     SNAP_KEEP; si riprende una copia e lo show resta da salvare."""
     import shutil as _sh
-    from cuestage.window import tools
+    from cuevivo.window import tools
     path = os.path.join(TMP, "snap.cueshow")
     _sh.rmtree(w.snapshot_dir(path), ignore_errors=True)
     if os.path.exists(path):
@@ -4986,7 +4986,7 @@ def t_snapshots(w):
         assert len(w.snapshots()) == 2                   # le più vecchie si tolgono
     finally:
         tools.SNAP_KEEP = old
-    from cuestage.ui_batch import SnapshotsDialog
+    from cuevivo.ui_batch import SnapshotsDialog
     d = SnapshotsDialog(w)
     assert d.list.count() == 2 and d.b_restore.isEnabled()
     d.close()
@@ -5045,7 +5045,7 @@ def t_active_feed(w):
         n1 = len(got)
         run(2.5)
         assert len(got) == n1                              # disdetto: più niente
-        from cuestage.active_feed import MAX_BYTES, encode
+        from cuevivo.active_feed import MAX_BYTES, encode
         big = {"v": 1, "cues": [{"id": str(i), "name": "x" * 200} for i in range(1000)]}
         out = _json.loads(encode(big))
         assert len(encode(big).encode()) <= MAX_BYTES and out["more"] == 1000 - len(out["cues"]) > 0
@@ -5060,8 +5060,8 @@ def t_long_names(w):
     """Nomi di cue, file e PANEL lunghissimi a 1366 px di larghezza: la finestra non si allarga, la barra in alto
     non scorre, standby e tab con i puntini (testo intero nel suggerimento), menu dell'ispettore stretti."""
     from PySide6.QtWidgets import QLabel
-    from cuestage.i18n import tr
-    from cuestage.main_window import _BarScroll
+    from cuevivo.i18n import tr
+    from cuevivo.main_window import _BarScroll
     long = "Nome di cue lunghissimo " * 8
     a = tone("Un file con un nome davvero molto ma molto lungo per provare la larghezza della finestra.wav", 1)
     sh = Show()
@@ -5191,7 +5191,7 @@ def t_active_scrub(w):
         run(0.3)
         assert inst.paused and abs(inst.position() - 2.0) < 0.3, inst.position()
         # il tempo mostrato trascinando ha anche quello assoluto del file (qui IN = 0: coincidono)
-        from cuestage.i18n import tr
+        from cuevivo.i18n import tr
         sc = {"ax": w.active.bars[0][1], "t": 3.0}
         assert w.active._scrub_text(sc) == "⇥ 00:03.0" + tr(" · file {0}", "00:03.00")
         # anche la linea di riproduzione della forma d'onda nell'ispettore si trascina
@@ -5222,7 +5222,7 @@ def t_marker_pause(w):
     principale): la cue si ferma, il marker di destinazione esegue la sua azione quando la cue riparte (una
     volta sola), il GO la fa ripartire invece di mandare la cue successiva; poi il GO torna normale."""
     from PySide6.QtCore import Qt
-    from cuestage.i18n import tr
+    from cuevivo.i18n import tr
     sh = Show()
     sh.settings["output_fullscreen"] = False
     a = tone("mpause.wav", 9)
@@ -5279,10 +5279,10 @@ def t_marker_pause(w):
         assert gotos and gotos[0].currentData() == "mC"
         assert all(o.get("id") for o in c.markers if o["name"] != "B")
         # pallini azzurri dei marker sulle barre, tempi in minuti e secondi, niente menu della lista dalla forma d'onda
-        from cuestage.markers import cue_axis, cue_marks
+        from cuevivo.markers import cue_axis, cue_marks
         ax = cue_axis(c, w.loader.duration(a))
         assert sorted(m.t for m in cue_marks(c, ax) if m.kind == "user") == [1.0, 2.0, 5.0]
-        from cuestage.ui_markers import TimeSpin
+        from cuevivo.ui_markers import TimeSpin
         ts = TimeSpin()
         ts.setRange(0, 36000)
         assert ts.textFromValue(83.5) == "01:23.50" and ts.valueFromText("1:23,5") == 83.5
@@ -5301,9 +5301,8 @@ def t_menus_osc_profiles(w):
     import json as _json
     import socket as _so
     import threading
-    from PySide6.QtWidgets import QMenu
-    from cuestage import osc_profiles as op
-    from cuestage.i18n import tr
+    from cuevivo import osc_profiles as op
+    from cuevivo.i18n import tr
     titles = [a.text().replace("&", "") for a in w.menuBar().actions()]
     for t in ("Au&dio", "I&stanze", "&Periferiche"):
         assert tr(t).replace("&", "") in titles, (t, titles)
@@ -5312,7 +5311,7 @@ def t_menus_osc_profiles(w):
     assert [a.text() for a in lang.actions()] == ["Italiano", "English", "Slovenščina"]
     per = next(a.menu() for a in w.menuBar().actions() if a.text().replace("&", "") == tr("&Periferiche").replace("&", ""))
     assert [a.text() for a in per.actions() if a.text()][:2] == [tr("Proiettori…"), tr("Pannello proiettori")]
-    from cuestage.ui_dialogs import SettingsDialog
+    from cuevivo.ui_dialogs import SettingsDialog
     d = SettingsDialog(w.show_data.settings, w.learn_midi, w, only=("audio", "osc", "midi"))
     assert [d.tabs.tabText(i) for i in range(d.tabs.count())] == [tr("Audio"), "OSC", "MIDI"]
     s2 = d.result_settings()
@@ -5339,7 +5338,7 @@ def t_menus_osc_profiles(w):
     assert op.render("qlcplus", "cuelist_next", {}) == ("/cuelist1/next", "1.0")
     assert not op.validate(op.profiles(reload=True)["qlcplus"])
     # editor dei profili
-    from cuestage.ui_oscprof import OscProfileEditor, OscProfilesBox
+    from cuevivo.ui_oscprof import OscProfileEditor, OscProfilesBox
     for pid in ("prova_cv", "qlcplus_2"):
         op.delete_user(pid)
     try:
@@ -5392,7 +5391,7 @@ def t_menus_osc_profiles(w):
     assert d.result_settings()["osc_devices"][0]["profile"] == "qlcplus"
     d.close()
     # proiettori PJLink: saluto senza password con il nome, e ricerca nella finestra
-    from cuestage.projectors import pjlink_info
+    from cuevivo.projectors import pjlink_info
     srv = _so.socket()
     srv.bind(("127.0.0.1", 0))
     srv.listen(2)
@@ -5415,7 +5414,7 @@ def t_menus_osc_profiles(w):
         assert pjlink_info("127.0.0.1", srv.getsockname()[1]) == {"auth": False, "name": "Sala grande"}
     finally:
         srv.close()
-    from cuestage.ui_projectors import ProjectorsDialog
+    from cuevivo.ui_projectors import ProjectorsDialog
     pd = ProjectorsDialog([], w.projectors, w)
     pd._discover_fn = lambda: [{"host": "10.1.1.20", "mac": "aa:bb", "name": "Sala", "auth": False}]
     pd._auto_pick = lambda r: True
@@ -5424,7 +5423,7 @@ def t_menus_osc_profiles(w):
     assert pd.result_projectors()[0]["host"] == "10.1.1.20" and pd.result_projectors()[0]["driver"] == "pjlink"
     assert pd._search() == []                            # già in elenco: non si ripete
     # la funzione vera (import del modulo) con la ricerca di rete sostituita; un errore non blocca la finestra
-    from cuestage import projectors as _pj
+    from cuevivo import projectors as _pj
     _orig = _pj.discover_pjlink
     _pj.discover_pjlink = lambda: [{"host": "10.1.1.21", "mac": "", "name": "", "auth": True}]
     try:
@@ -5436,6 +5435,28 @@ def t_menus_osc_profiles(w):
     finally:
         _pj.discover_pjlink = _orig
     pd.close()
+
+
+def t_legacy_package_name():
+    """Cartella del codice «cuevivo»: i plugin scritti per «cuestage» (from cuestage.… import …) si caricano ancora."""
+    import cuevivo
+    from cuevivo.projectors import PluginRegistry, ProjectorDriver
+    from cuevivo.mixers import MixerDriver
+    d = os.path.join(TMP, "plugin_vecchio")
+    os.makedirs(d, exist_ok=True)
+    pp = os.path.join(d, "vecchio.py")
+    with open(pp, "w", encoding="utf-8") as f:
+        f.write("from cuestage.projectors import ProjectorDriver\nfrom cuestage.i18n import tr\n\n"
+                "class Vecchio(ProjectorDriver):\n    ID = 'vecchio_test'\n    NAME = 'Vecchio'\n")
+    reg = PluginRegistry()
+    reg._load_file(pp)
+    assert "vecchio_test" in reg.drivers and issubclass(reg.drivers["vecchio_test"], ProjectorDriver)
+    import cuestage.mixers
+    assert cuestage.mixers.MixerDriver is MixerDriver and sys.modules["cuestage"] is cuevivo
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    assert os.path.isfile(os.path.join(here, "cuevivo", "__init__.py"))
+    assert not os.path.exists(os.path.join(here, "cuestage"))
+    assert "-m cuevivo" in open(os.path.join(here, "run.sh"), encoding="utf-8").read()
 
 
 def make_pdf(name, n=4):
@@ -5465,7 +5486,7 @@ def make_pdf(name, n=4):
 def t_pdf_cue(w):
     """Cue PDF: pagine come un gruppo in sequenza (GO = pagina successiva, poi la cue seguente), pagine scelte anche
     singolarmente e in un ordine qualsiasi, Alt+→/← e doppio clic, crop e dimensione dell'intero file, ESC esce."""
-    from cuestage import pdf_doc
+    from cuevivo import pdf_doc
     if not pdf_doc.available():
         return
     path = make_pdf("prova.pdf", 4)
@@ -5484,7 +5505,7 @@ def t_pdf_cue(w):
     sh.cues = [c, nxt, after]
     w._set_show(sh)
     run(0.2)
-    from cuestage.model import type_for_file
+    from cuevivo.model import type_for_file
     assert type_for_file(path) == "pdf" and c.is_visual()
     c.pdf_pages = [0, 2, 3]                                                # pagine scelte: 1, 3, 4
     c.pdf_fade = 0.0
@@ -5581,13 +5602,13 @@ def t_memo_skip(w):
 
 
 def t_osc_profile():
-    from cuestage.osc_profiles import render
+    from cuevivo.osc_profiles import render
     assert render("chamsys_magicq", "go", {"pb": 3}) == ("/pb/3/go", "1")
     assert render("chamsys_magicq", "goto", {"pb": 2, "cue": 12.5}) == ("/pb/2/12.5", "1")
 
 
 def t_alsa_parser():
-    from cuestage.alsactl import parse_contents
+    from cuevivo.alsactl import parse_contents
     txt = ("numid=8,iface=MIXER,name='Line 01 (Monitor L) Playback Volume'\n"
            "  ; type=INTEGER,access=rw---R--,values=1,min=0,max=127,step=1\n  : values=100\n"
            "  | dBminmax-min=-127.00dB,max=0.00dB\n")
@@ -5620,8 +5641,8 @@ def t_cluster_redundancy():
         run(0.3)
         assert done == [True], done
         # ridondanza collegata: niente comandi ai dispositivi esterni (li manda il master), avviso arancione
-        from cuestage import outputs
-        from cuestage.remote import midi_out, osc_send
+        from cuevivo import outputs
+        from cuevivo.remote import midi_out, osc_send
         assert outputs.held() and b.held_label.isVisibleTo(b) and not a.held_label.isVisibleTo(a)
         assert osc_send("127.0.0.1", 9, "/prova", "1") is False and midi_out.send_script("x", "cc 1 1 1") == 0
         assert b.mixers.set_control("nessuno", "k", 1).result() is None
@@ -5715,7 +5736,7 @@ def t_cluster_live_edit():
     """Master + ridondanza mentre una cue suona: fader della matrice, curva di volume e loop cambiati
     nell'ispettore del master arrivano alla ridondanza e valgono subito anche lì."""
     from PySide6.QtWidgets import QSlider
-    from cuestage.audio_engine import SR
+    from cuevivo.audio_engine import SR
     a = MainWindow()
     b = MainWindow()
     try:
@@ -5771,7 +5792,7 @@ def t_cluster_join_align():
     """Una ridondanza che si collega mentre il master suona: le cue partono al punto del master, la pausa e
     gli scostamenti si allineano; spostamento di una voce audio anche con il loop."""
     import numpy as _np
-    from cuestage.audio_engine import SR, Voice
+    from cuevivo.audio_engine import SR, Voice
     v = Voice(_np.zeros((SR * 10, 1), _np.float32), 1.0, 9.0, True, 2.0, 4.0, 0, 1.0, None, 0.5, 0.0)
     v.seek(2.5)                                          # 1 + 2.5 = 3.5 s nel file, prima del giro
     assert v.pos == int(3.5 * SR) and v.played == int(2.5 * SR) and v.ramp is None
@@ -5840,7 +5861,7 @@ def t_cluster_slow_transfer():
     """File grande su rete lenta: la secondaria non viene scollegata a metà, «Esci dalla modalità slave» è
     attiva già durante il download, e un trasferimento interrotto chiude la sincronizzazione con un errore."""
     import wave
-    from cuestage import cluster as cl
+    from cuevivo import cluster as cl
     big = os.path.join(TMP, "grande.wav")
     with wave.open(big, "wb") as wf:
         wf.setnchannels(2)
@@ -5953,7 +5974,7 @@ def t_bundle(w):
 
 def t_web_toggle(w):
     """La casella dell'interfaccia web la accende / spegne subito; spenta, il QR è grigio."""
-    from cuestage.ui_dialogs import SettingsDialog
+    from cuevivo.ui_dialogs import SettingsDialog
     w.show_data.settings.update(web_enabled=False, web_port=18779, web_pin="")
     w.web.stop()
     d = SettingsDialog(w.show_data.settings, w.learn_midi, w, web_fn=w._web_switch)
@@ -5976,9 +5997,9 @@ def t_midi_feedback(w):
     """Ritorno MIDI verso un controller (es. BCR2000): anelli / fader con i valori attuali, LED delle cue in
     esecuzione e di DIM, niente rimbalzi mentre si muove un controllo, niente invio dalla ridondanza."""
     import mido
-    from cuestage import outputs
-    from cuestage.midi_feedback import db_to_fader
-    from cuestage.remote import midi_out
+    from cuevivo import outputs
+    from cuevivo.midi_feedback import db_to_fader
+    from cuevivo.remote import midi_out
     got = []
 
     class FakeOut:
@@ -6039,8 +6060,8 @@ def t_midi_feedback(w):
         assert any(m[:2] == (0xB0, 20) for m in got), got           # dopo la ridondanza: tutto da capo
         w.ctrl.stop_all(0)
         # impostazioni: la porta di ritorno si sceglie nei filtri della scheda
-        from cuestage.remote import MidiInput
-        from cuestage.ui_dialogs import SettingsDialog
+        from cuevivo.remote import MidiInput
+        from cuevivo.ui_dialogs import SettingsDialog
         old_in = MidiInput.list_ports
         MidiInput.list_ports = staticmethod(lambda: ["BCR2000 Port 1"])
         try:
@@ -6410,6 +6431,7 @@ if __name__ == "__main__":
     check("Cue attive: trascinare il cursore sospende la cue e riprende dal punto scelto", lambda: t_active_scrub(w))
     check("Marker Pause Cue e Pause Cue e vai al marker: ripresa col ▶ o col GO", lambda: t_marker_pause(w))
     check("Menu Audio/Istanze/Periferiche/Lingue, profili OSC (QLC+, editor, JSON), ricerca proiettori", lambda: t_menus_osc_profiles(w))
+    check("Pacchetto «cuevivo»: i plugin con «import cuestage» funzionano ancora", t_legacy_package_name)
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

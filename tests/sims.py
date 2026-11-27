@@ -1,7 +1,7 @@
 """Simulatori dei mixer per i test di Cuevivo."""
 import os, socket, threading, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from cuestage.mixers import osc_encode, osc_decode, NrpnParser
+from cuevivo.mixers import osc_encode, osc_decode, NrpnParser
 
 class X32Sim:
     def __init__(self, port=10023, name="FOH X32", model="X32"):

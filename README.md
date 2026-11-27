@@ -110,10 +110,10 @@ raises the minimum.
 and applies when Cuevivo is **restarted**. On the first start Cuevivo uses the system language if it is
 available, otherwise English. For a quick test: `CUEVIVO_LANG=en ./run.sh`.
 
-The texts are in `cuestage/lang/<code>.json` (`it`, `en`, `sl`): every Italian text of the program with its
+The texts are in `cuevivo/lang/<code>.json` (`it`, `en`, `sl`): every Italian text of the program with its
 translation. Translations must keep the placeholders `{0}`, `{1}`… (with their format, e.g. `{0:.1f}`), in any
 order; an empty text stays in Italian. Languages can be corrected or added without touching the program, by
-putting the file in the `lang` folder of the user data (`~/.local/share/cuestage/lang/` on Linux): it completes
+putting the file in the `lang` folder of the user data (`~/.local/share/cuevivo/lang/` on Linux): it completes
 and corrects the program's file.
 
 For developers:
@@ -380,9 +380,9 @@ beginning), **Stop**, **Rec**, **go to time** and **go to time and Play** via MM
 “Receive MMC”), **Start / Continue / Stop** of the MIDI clock (MPC set to receive MIDI sync) and **play a pad** (Note
 On, length, Note Off with the note assigned to the pad). Force and MPC Sample are not verified. The MPC does not
 accept control of its mixer or parameters over MIDI CC, and its network MIDI driver exists only for Windows and
-macOS, so the connection is MIDI DIN or USB. Other devices: a JSON file in `~/.local/share/cuestage/midi_profiles/`
+macOS, so the connection is MIDI DIN or USB. Other devices: a JSON file in `~/.local/share/cuevivo/midi_profiles/`
 (`id`, `name`, `notes`, `commands` with `label`, `lines` in the syntax above with `{param}` placeholders and
-`params`), as in `cuestage/midi_profiles/akai_mpc.json`.
+`params`), as in `cuevivo/midi_profiles/akai_mpc.json`.
 
 ## Cue groups
 
@@ -1116,8 +1116,8 @@ only the actions the projector supports.
 | **Panasonic PT-MZ880 / MZ882** (plugin) | TCP 1024, NTCONTROL with MD5 hash user:password | power, shutter (OSH), HDMI 1/2, DIGITAL LINK, COMPUTER inputs, freeze, zoom/focus/shift at 3 speeds, lens home position. No lens memory on these models |
 | **Optoma ZU506T / ZH506 / ZW506** (plugin) | telnet TCP 23, `~ID…` commands | power, shutter = AV mute, inputs, freeze. **Manual** lens: zoom, focus and shift cannot be controlled |
 
-**Plugins**: a `.py` file with a class derived from `ProjectorDriver` in `~/.local/share/cuestage/plugins/` adds a
-driver (guide and example in `cuestage/plugins/LEGGIMI_PLUGIN.md`); “Reload plugins” loads it without
+**Plugins**: a `.py` file with a class derived from `ProjectorDriver` in `~/.local/share/cuevivo/plugins/` adds a
+driver (guide and example in `cuevivo/plugins/LEGGIMI_PLUGIN.md`); “Reload plugins” loads it without
 restarting. Faulty plugins are reported and ignored.
 
 **To be checked on real projectors**: the drivers are written from the protocol documentation and tested with
@@ -1239,7 +1239,7 @@ in the panel buttons, in the cue boxes and in the list (fader cues on a single c
 show, so they stay visible with the mixer off too; they are read again with “⟲ Channel names” in the cue or with
 “Read all” in the panel. Allen & Heath Qu/SQ and Yamaha over MIDI do not provide names. The commands of each mixer
 go through a dedicated queue (in order, without blocking the show); the result appears in the status bar. New
-mixers are added with a plugin (see `cuestage/mixer_plugins/LEGGIMI.md`).
+mixers are added with a plugin (see `cuevivo/mixer_plugins/LEGGIMI.md`).
 
 ## Video switchers (Roland V-8HD, V-1HD, OBS Studio, Blackmagic ATEM Mini)
 
@@ -1306,7 +1306,7 @@ The Roland switchers do not report their state: the values shown are the last on
 “CUT to” / “AUTO to” assume the fader starts on bus A). Check the commands on the unit before the show. Shows
 saved with a switcher among the mixers are converted when opened (the switcher moves to Video switchers and its
 Mixer cues become Video switcher cues). Other switchers can be added as plugins in the mixer plugin folder
-(`SWITCHER = True`, see `cuestage/mixer_plugins/LEGGIMI.md`).
+(`SWITCHER = True`, see `cuevivo/mixer_plugins/LEGGIMI.md`).
 
 ## Secondary instances: master, slave and redundancy
 
@@ -1570,7 +1570,7 @@ fields and the preview are separated by a draggable divider, so the window alway
 
 ## Technical notes
 
-- Code structure (`cuestage/`):
+- Code structure (`cuevivo/`):
   - `model.py` (show, cues, lists, versions), `engine.py` (cue playback), `audio_engine.py` (audio mixer on
     PortAudio), `media.py` (ffmpeg/ffprobe, waveforms), `video_output.py`, `video_deck.py` (video preload),
     `text_render.py`, `history.py` (undo/redo), `i18n.py` + `lang/` (languages);
@@ -1627,4 +1627,5 @@ new name nothing has to be redone:
 - **Network**: instances of different versions still recognise each other in the cluster; OSC programs (e.g.
   Script Follower) may use `/cuestage/…` or `/cuevivo/…` and get answers in the same namespace; the web page
   accepts both PIN headers.
-- The Python package folder stays `cuestage/`.
+- The Python package folder is `cuevivo/` (until 1.0.32 `cuestage/`); user plugins that still import
+  `cuestage.…` keep working.
