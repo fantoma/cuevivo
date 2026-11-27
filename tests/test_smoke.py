@@ -3898,6 +3898,14 @@ def t_rt_gc(w):
     d.refresh()
     from cuevivo.i18n import tr as _tr
     assert _tr("Garbage collector") in d.info.text()
+    # scheda Stato: versione di Cuevivo, sistema operativo con la sua versione (anche nel testo copiato)
+    import cuevivo
+    from cuevivo.appinfo import APP_NAME
+    from cuevivo.update_check import os_version
+    info = d.info.text()
+    assert f"{APP_NAME}: {cuevivo.__version__}" in info and _tr("Sistema operativo") in info, info[:400]
+    assert os_version() in info and len(os_version()) > 2
+    assert f"{APP_NAME}: {cuevivo.__version__}" in d.text() and os_version() in d.text()
     d.reset()
     assert rt.gc_stats()["count"] == 0
     d.close()

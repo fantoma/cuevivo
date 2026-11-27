@@ -192,6 +192,23 @@ class DiagnosticsDialog(QDialog):
         return self._summary(html=False) + "\n\n" + (("== " + tr("Prestazioni") + "\n" + perf + "\n\n")
                                                      if perf else "") + self.log.toPlainText()
 
+    def _about(self):
+        """Versione di Cuevivo, sistema operativo (nome e versione), Python e Qt: calcolati una volta."""
+        if getattr(self, "_about_rows", None) is None:
+            import platform
+            from . import __version__
+            from .system import IS_LINUX
+            from .update_check import arch, os_version
+            import PySide6
+            from PySide6.QtCore import qVersion
+            osv = os_version() + (f" ({arch()})" if arch() else "")
+            if IS_LINUX and platform.release():
+                osv += " · " + tr("kernel {0}", platform.release())
+            self._about_rows = [(APP_NAME, __version__), (tr("Sistema operativo"), osv),
+                                ("Python", platform.python_version()),
+                                ("Qt", f"{qVersion()} (PySide6 {PySide6.__version__})")]
+        return self._about_rows
+
     def _summary(self, html=True):
         from .audio_engine import BUFFER_LABELS
         mw = self.mw
@@ -206,6 +223,9 @@ class DiagnosticsDialog(QDialog):
             if html and color:
                 val = f"<span style='color:{color};font-weight:bold'>{val}</span>"
             lines.append(f"{label}: {val}")
+        head(tr("Programma e sistema"))
+        for label, val in self._about():
+            row(label, val)
         head(tr("Processore"))
         row(APP_NAME, tr("{0:.0f} % di un core ({1:.0f} % del totale, {2} core)",
                                self._cpu * 100, self._cpu * 100 / ncpu, ncpu), _color(self._cpu / ncpu))
