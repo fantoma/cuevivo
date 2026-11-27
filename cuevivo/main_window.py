@@ -490,6 +490,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         def save_widths(*_a):
             try:
                 self.qs.setValue("cuelist_widths", self.table.preferred_widths(len(widths)))
+                self.qs.sync()
             except RuntimeError:
                 pass
         self._save_col_timer = QTimer(self)

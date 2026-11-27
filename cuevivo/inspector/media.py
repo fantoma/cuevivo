@@ -652,7 +652,29 @@ class MediaTabsMixin:
             def moved(ft, kbar=kbar):
                 kbar.goto_time(self.timeline._cue_time_of(ft) if self.timeline else ft)
             self.timeline.cursorMoved.connect(moved)
-        top = QHBoxLayout()
+        # righe che vanno a capo da sole (FlowLayout): etichetta e campo restano insieme; con caratteri larghi
+        # (es. Windows) o a 1366 px l'ispettore non si allarga oltre la finestra
+        from ..ui_elide import FlowLayout, field_group
+
+        class _Row:
+            """Come una QHBoxLayout, ma un'etichetta resta unita al widget che la segue."""
+
+            def __init__(self):
+                self.flow = FlowLayout()
+                self._label = None
+
+            def addWidget(self, wd, *_a):
+                if isinstance(wd, QLabel) and self._label is None:
+                    self._label = wd
+                    return
+                self.flow.addWidget(field_group(self._label, wd) if self._label is not None else wd)
+                self._label = None
+
+            def addStretch(self, *_a):
+                if self._label is not None:
+                    self.flow.addWidget(self._label)
+                    self._label = None
+        top = _Row()
         top.addWidget(QLabel("IN"))
         in_sp = self._dspin("start", 0, 36000, 0.1, 3)
         top.addWidget(in_sp)
@@ -673,7 +695,7 @@ class MediaTabsMixin:
         top.addStretch(1)
         # loop su una riga sua: con tutto sulla stessa riga l'ispettore si allargava oltre i 1366 px e la forma
         # d'onda finiva in parte fuori vista
-        loop_row = QHBoxLayout()
+        loop_row = _Row()
         row = loop_row
         lc = self._check("loop", tr("Loop"))
         grp = self.show_fn().by_id(cue.group) if cue.group else None
@@ -765,8 +787,8 @@ class MediaTabsMixin:
         bz.clicked.connect(lambda: self.timeline.zoom_all())
         row.addWidget(bc)
         row.addWidget(bz)
-        v.addLayout(top)
-        v.addLayout(loop_row)
+        v.addLayout(top.flow)
+        v.addLayout(loop_row.flow)
         if cue.type == "video":
             v.addLayout(self._video_sep_row())
         # ---- elenco dei marker: nome, tempo, note, azione

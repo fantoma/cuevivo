@@ -83,10 +83,11 @@ class MarkersPanel(QWidget):
         add.setToolTip(tr("Aggiunge un marker al cursore del grafico (anche con il tasto M o con il tasto destro)"))
         add.clicked.connect(self.addRequested)
         head.addWidget(add)
-        self.empty = QLabel(tr("Nessun marker: tasto destro sul grafico › «Aggiungi marker qui», oppure M."))
+        from .ui_elide import ElidedLabel
+        # su una riga con i puntini: con caratteri larghi (es. Windows) non deve allargare la finestra
+        self.empty = ElidedLabel(tr("Nessun marker: tasto destro sul grafico › «Aggiungi marker qui», oppure M."))
         self.empty.setStyleSheet("color:#888;")
-        head.addWidget(self.empty)
-        head.addStretch(1)
+        head.addWidget(self.empty, 1)
         self.head = head                # chi usa il pannello può aggiungere i suoi pulsanti a destra
         outer.addLayout(head)
         self.grid = QGridLayout()

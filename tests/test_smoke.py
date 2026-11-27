@@ -1995,10 +1995,15 @@ def t_column_widths(w):
     hh.resizeSection(C_NAME, 333)
     hh.resizeSection(C_NUM, 77)
     run(0.6)
+    w._save_col_timer.stop()
+    w._save_col_timer.timeout.emit()                 # salvataggio adesso (le macchine lente di GitHub)
+    raw = _app_settings().value("cuelist_widths")
+    saved = [int(x) for x in (raw or [])]
+    assert len(saved) > C_NAME and saved[C_NUM] == 77 and saved[C_NAME] == 333, ("salvate", raw)
     w2 = MainWindow()
     try:
         assert w2.table.columnWidth(C_NUM) == 77 and w2.table.columnWidth(C_NAME) == 333, \
-            (w2.table.columnWidth(C_NUM), w2.table.columnWidth(C_NAME))
+            ("riprese", w2.table.columnWidth(C_NUM), w2.table.columnWidth(C_NAME), raw)
     finally:
         w2.show_data.dirty = False
         w2.close()
@@ -5294,24 +5299,24 @@ def t_marker_pause(w):
         w._update_standby()
         assert w.standby.text() == tr("⏸ {0}: GO = riprendi", c.label())
         w.go()                                               # il GO riprende la cue, non manda la successiva
-        run(0.3)
-        assert not inst.paused and inst.marker_hold is None and after.id not in w.ctrl.instances
-        assert inst.position() > 5.1 and nxt.id in w.ctrl.instances     # alla ripresa C esegue la sua azione
+        # (wait_until: le macchine lente di GitHub, es. Windows, hanno tempi più lunghi)
+        assert wait_until(lambda: not inst.paused and inst.marker_hold is None, 4), (inst.paused, inst.marker_hold)
+        assert after.id not in w.ctrl.instances
+        assert wait_until(lambda: inst.position() > 5.1 and nxt.id in w.ctrl.instances, 4), \
+            (inst.position(), nxt.id in w.ctrl.instances)                   # alla ripresa C esegue la sua azione
         w.ctrl.stop_cue(nxt.id, 0.0)
+        assert wait_until(lambda: nxt.id not in w.ctrl.instances, 4)
         run(0.3)
         assert nxt.id not in w.ctrl.instances                # una volta sola
         w.go()                                               # mentre suona: GO normale
-        run(0.2)
-        assert after.id in w.ctrl.instances
+        assert wait_until(lambda: after.id in w.ctrl.instances, 4)
         # «riprende col GO principale»: riparte anche col ▶ delle cue attive
         w.ctrl.restart_from(c, 1.6)
         assert wait_until(lambda: inst.paused and inst.marker_hold == "go", 4)
         w._toggle_pause_cue(c.id)                            # ▶ nel pannello delle cue attive
-        run(0.3)
-
-        assert not inst.paused and inst.marker_hold is None and w.ctrl.marker_held() is None, \
-            (inst.paused, inst.marker_hold, w.ctrl.marker_held())
-        assert nxt.id in w.ctrl.instances                    # anche così la destinazione esegue la sua azione
+        assert wait_until(lambda: not inst.paused and inst.marker_hold is None and w.ctrl.marker_held() is None,
+                          4), (inst.paused, inst.marker_hold, w.ctrl.marker_held())
+        assert wait_until(lambda: nxt.id in w.ctrl.instances, 4)   # anche così la destinazione esegue la sua azione
         # editor dei marker con le nuove azioni
         w._select_row(0)
         ins = w.inspector

@@ -1,7 +1,7 @@
 """Testi lunghi (nomi di cue e di file) che non devono allargare la finestra: etichette con i puntini e menu a
 tendina di larghezza contenuta (l'elenco aperto mostra comunque i nomi interi)."""
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtWidgets import QComboBox, QLabel, QSizePolicy
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLayout, QSizePolicy, QWidget
 
 MAX_HINT = 420          # larghezza «desiderata» massima di un'etichetta (px): oltre, si tronca con «…»
 COMBO_CHARS = 32        # caratteri massimi visibili nella voce scelta di un menu a tendina (oltre: troncata)
@@ -173,3 +173,89 @@ def tame_combos(widget):
         if lay is not None and id(lay) not in done:
             done.add(id(lay))
             _pack_left(lay)
+
+
+class FlowLayout(QLayout):
+    """Elementi in fila che vanno a capo quando non c'è spazio (come le parole di un testo): su uno schermo largo
+    stanno su una riga, a 1366 px o con caratteri larghi su due, senza allargare la finestra."""
+
+    def __init__(self, parent=None, hspacing=6, vspacing=3):
+        super().__init__(parent)
+        self._items = []
+        self._h, self._v = hspacing, vspacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, i):
+        return self._items[i] if 0 <= i < len(self._items) else None
+
+    def takeAt(self, i):
+        return self._items.pop(i) if 0 <= i < len(self._items) else None
+
+    def expandingDirections(self):
+        return Qt.Orientations(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._do(QRect(0, 0, width, 0), True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._do(rect, False)
+
+    def sizeHint(self):
+        w = h = 0
+        for it in self._items:
+            if it.isEmpty():
+                continue
+            s = it.sizeHint()
+            w += s.width() + (self._h if w else 0)
+            h = max(h, s.height())
+        m = self.contentsMargins()
+        return QSize(w + m.left() + m.right(), h + m.top() + m.bottom())
+
+    def minimumSize(self):
+        s = QSize()
+        for it in self._items:
+            if not it.isEmpty():
+                s = s.expandedTo(it.minimumSize())
+        m = self.contentsMargins()
+        return s + QSize(m.left() + m.right(), m.top() + m.bottom())
+
+    def _do(self, rect, test):
+        m = self.contentsMargins()
+        r = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom())
+        x, y, line_h = r.x(), r.y(), 0
+        for it in self._items:
+            if it.isEmpty():
+                continue
+            s = it.sizeHint()
+            nx = x + s.width()
+            if nx > r.right() + 1 and line_h > 0:          # a capo
+                x = r.x()
+                y += line_h + self._v
+                nx = x + s.width()
+                line_h = 0
+            if not test:
+                it.setGeometry(QRect(QPoint(x, y), s))
+            x = nx + self._h
+            line_h = max(line_h, s.height())
+        return y + line_h - rect.y() + m.bottom()
+
+
+def field_group(*widgets):
+    """Etichetta e campo (o più widget) tenuti insieme in una FlowLayout: vanno a capo insieme."""
+    box = QWidget()
+    h = QHBoxLayout(box)
+    h.setContentsMargins(0, 0, 0, 0)
+    h.setSpacing(4)
+    for w in widgets:
+        h.addWidget(w)
+    return box
