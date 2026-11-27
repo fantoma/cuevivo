@@ -171,7 +171,7 @@ class SettingsDialog(QDialog):
                          (tr("Rimuovi"), self._del_osc_dev), (tr("Importa JSON…"), self._import_osc_devs),
                          (tr("Esporta JSON…"), self._export_osc_devs)):
             b = QPushButton(text)
-            b.clicked.connect(fn)
+            b.clicked.connect(lambda _c=False, f=fn: f())    # senza il bool di clicked (non è un percorso)
             br.addWidget(b)
         br.addStretch(1)
         gdl.addLayout(br)

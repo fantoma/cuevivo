@@ -5389,6 +5389,36 @@ def t_menus_osc_profiles(w):
     d.osc_devs = []
     assert d._import_osc_devs(pth) == 1 and d.osc_devs[0]["host"] == "10.0.0.5"
     assert d.result_settings()["osc_devices"][0]["profile"] == "qlcplus"
+    # i pulsanti veri (il segnale clicked passa un bool: non deve finire come percorso del file)
+    from PySide6.QtWidgets import QFileDialog, QPushButton
+
+    def press(parent, text):
+        next(b for b in parent.findChildren(QPushButton) if b.text() == tr(text)).click()
+    _gs, _go = QFileDialog.getSaveFileName, QFileDialog.getOpenFileName
+    out = os.path.join(TMP, "devs_btn.json")
+    out_p = os.path.join(TMP, "prof_btn.json")
+    QFileDialog.getSaveFileName = staticmethod(lambda *a, **k: (out, ""))
+    QFileDialog.getOpenFileName = staticmethod(lambda *a, **k: (out, ""))
+    try:
+        press(d, "Esporta JSON…")
+        assert _json.load(open(out, encoding="utf-8"))["osc_devices"][0]["id"] == "d1"
+        d.osc_devs = []
+        press(d, "Importa JSON…")
+        assert [x["id"] for x in d.osc_devs] == ["d1"] and d.dev_list.count() == 1
+        box = d.osc_profiles_box
+        box.reload("qlcplus")
+        QFileDialog.getSaveFileName = staticmethod(lambda *a, **k: (out_p, ""))
+        press(box, "Esporta JSON…")
+        data = _json.load(open(out_p, encoding="utf-8"))
+        assert data["id"] == "qlcplus"
+        data["id"], data["name"] = "qlcplus_btn", "QLC+ btn"
+        _json.dump(data, open(out_p, "w", encoding="utf-8"))
+        QFileDialog.getOpenFileName = staticmethod(lambda *a, **k: (out_p, ""))
+        press(box, "Importa JSON…")
+        assert "qlcplus_btn" in op.profiles()
+    finally:
+        QFileDialog.getSaveFileName, QFileDialog.getOpenFileName = _gs, _go
+        op.delete_user("qlcplus_btn")
     d.close()
     # proiettori PJLink: saluto senza password con il nome, e ricerca nella finestra
     from cuevivo.projectors import pjlink_info

@@ -328,7 +328,7 @@ class OscProfilesBox(QGroupBox):
                          (tr("Elimina"), self.delete), (tr("Importa JSON…"), self.import_json),
                          (tr("Esporta JSON…"), self.export_json)):
             b = QPushButton(text)
-            b.clicked.connect(fn)
+            b.clicked.connect(lambda _c=False, f=fn: f())    # senza il bool di clicked (non è un percorso)
             br.addWidget(b)
         br.addStretch(1)
         v.addLayout(br)
