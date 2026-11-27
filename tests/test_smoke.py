@@ -4950,6 +4950,15 @@ def t_cue_sheet(w):
     with open(p, "rb") as f:
         assert f.read(5) == b"%PDF-"
     assert os.path.getsize(p) > 1000
+    # leggibile: con 120 cue il testo a grandezza normale occupa più pagine (rimpicciolito stava tutto in una)
+    import re as _re
+    sh.main.cues[:] = [Cue("memo", number=str(i), name=f"Cue {i}") for i in range(120)]
+    w._set_show(sh)
+    run(0.2)
+    p = w.export_cue_sheet(os.path.join(TMP, "sheet_long.pdf"))
+    with open(p, "rb") as f:
+        pages = len(_re.findall(rb"/Type\s*/Page(?!s)", f.read()))
+    assert 3 <= pages <= 8, pages
 
 
 def t_snapshots(w):

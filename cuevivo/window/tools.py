@@ -305,8 +305,8 @@ class ToolsMixin:
             if not rows:
                 continue
             parts.append(f"<h3>{e(lst.name)}</h3><table border='1' cellspacing='0' cellpadding='3' width='100%'"
-                         " style='border-collapse:collapse;font-size:8pt'><tr>"
-                         + "".join(f"<th style='background:#ddd'>{e(h)}</th>" for h in head) + "</tr>")
+                         " style='border-collapse:collapse;font-size:9pt'><thead><tr>"
+                         + "".join(f"<th style='background:#ddd'>{e(h)}</th>" for h in head) + "</tr></thead>")
             for r in rows:
                 grey = " style='color:#999'" if r[-1] else ""
                 parts.append(f"<tr{grey}>" + "".join(
@@ -319,7 +319,8 @@ class ToolsMixin:
         pw.setPageLayout(QPageLayout(QPageSize(QPageSize.A4), QPageLayout.Landscape, QMarginsF(10, 10, 10, 10),
                                      QPageLayout.Millimeter))
         pw.setTitle(title)
-        doc.setPageSize(pw.pageLayout().paintRectPixels(pw.resolution()).size().toSizeF())
+        # senza setPageSize: print_() impagina con la risoluzione della stampante (1200 dpi) e i caratteri in punti;
+        # una pagina fissata in pixel della stampante rimpiccioliva tutto di ~12 volte (illeggibile)
         doc.print_(pw)
 
     # ------------------------------------------------------------------ copie precedenti
