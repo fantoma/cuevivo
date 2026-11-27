@@ -554,7 +554,9 @@ class OutputFrameView(QWidget):
             _, dst = layer_geometry(lay, lay.image, w, h, self.comp.out_size)
             base = [dst.topLeft(), dst.topRight(), dst.bottomRight(), dst.bottomLeft()][kind]
             warp = [list(x) for x in (c.warp or [[0, 0]] * 4)]
-            warp[kind] = [int(round((pt.x() - base.x()) * ow / w)), int(round((pt.y() - base.y()) * oh / h))]
+            from .video_output import warp_factors
+            fx, fy = warp_factors(lay.cue or c)            # angoli in px d'uscita alla dimensione 100%
+            warp[kind] = [int(round((pt.x() - base.x()) * ow / w / fx)), int(round((pt.y() - base.y()) * oh / h / fy))]
             c.warp = warp
         self.changed.emit()
         self.update()

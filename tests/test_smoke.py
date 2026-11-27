@@ -5498,6 +5498,52 @@ def t_legacy_package_name():
     assert "-m cuevivo" in open(os.path.join(here, "run.sh"), encoding="utf-8").read()
 
 
+def t_warp_follows_scale():
+    """Prospettiva della cue (4 angoli): gli spostamenti valgono alla dimensione 100% e crescono con la
+    dimensione, così ingrandendo la forma resta uguale (prima sembrava ruotare); gli show salvati prima
+    si convertono all'apertura e l'uscita resta identica."""
+    from PySide6.QtCore import QRectF
+    from cuevivo.model import Show
+    from cuevivo.video_output import layer_quad
+
+    class _L:
+        pass
+    c = Cue("image", name="I")
+    c.warp = [[100, 40], [0, 0], [-60, 0], [0, 0]]
+    lay = _L()
+    lay.cue = c
+    W, H = 1920, 1080
+
+    def shape(scale):
+        c.scale = scale
+        k = scale / 100
+        dst = QRectF(960 - 480 * k, 540 - 270 * k, 960 * k, 540 * k)
+        q = layer_quad(lay, dst, W, H, (W, H))
+        return [((q.at(i).x() - dst.x()) / dst.width(), (q.at(i).y() - dst.y()) / dst.height()) for i in range(4)]
+    a, b = shape(100.0), shape(250.0)
+    assert all(abs(x0 - x1) < 1e-6 and abs(y0 - y1) < 1e-6 for (x0, y0), (x1, y1) in zip(a, b)), (a, b)
+    # 100%: come prima (px d'uscita)
+    c.scale = 100.0
+    q = layer_quad(lay, QRectF(0, 0, 960, 540), W, H, (W, H))
+    assert (q.at(0).x(), q.at(0).y()) == (100.0, 40.0)
+    # show della versione 1: angoli divisi per la dimensione salvata (anche nei preset)
+    old = Cue("image", name="Vecchia")
+    old.scale, old.scale_x = 200.0, 150.0
+    old.warp = [[300, 100], [0, 0], [0, 0], [0, 0]]
+    old.presets = {"visual": {"zoom": {"scale": 50.0, "warp": [[30, 20], [0, 0], [0, 0], [0, 0]]}}}
+    data = Show().to_data(None)
+    data["cues"] = [old.to_dict()]
+    data["version"] = 1
+    sh = Show.from_data(data, None)
+    c2 = sh.main.cues[0]
+    assert c2.warp[0] == [100, 50], c2.warp
+    assert c2.presets["visual"]["zoom"]["warp"][0] == [40, 40], c2.presets
+    # salvato e riaperto (versione 2): nessuna seconda conversione
+    d2 = sh.to_data(None)
+    assert d2["version"] == Show.VERSION >= 2
+    assert Show.from_data(d2, None).main.cues[0].warp[0] == [100, 50]
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -6471,6 +6517,7 @@ if __name__ == "__main__":
     check("Marker Pause Cue e Pause Cue e vai al marker: ripresa col ▶ o col GO", lambda: t_marker_pause(w))
     check("Menu Audio/Istanze/Periferiche/Lingue, profili OSC (QLC+, editor, JSON), ricerca proiettori", lambda: t_menus_osc_profiles(w))
     check("Pacchetto «cuevivo»: i plugin con «import cuestage» funzionano ancora", t_legacy_package_name)
+    check("Prospettiva della cue: segue la dimensione (non sembra ruotare), show precedenti convertiti", t_warp_follows_scale)
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))

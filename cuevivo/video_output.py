@@ -151,6 +151,18 @@ def layer_geometry(lay, img, W, H, out_size=None):
     return src, QRectF(cx - w / 2, cy - h / 2, w, h)
 
 
+def warp_factors(cue):
+    """Moltiplicatori (x, y) della prospettiva della cue: gli spostamenti degli angoli valgono alla dimensione
+    100% e crescono con la dimensione (e la deformazione), così la forma resta la stessa ingrandendo."""
+    try:
+        sc = max(0.01, float(getattr(cue, "scale", 100) or 100) / 100)
+        sx = max(0.01, float(getattr(cue, "scale_x", 100) or 100) / 100)
+        sy = max(0.01, float(getattr(cue, "scale_y", 100) or 100) / 100)
+    except (TypeError, ValueError):
+        return 1.0, 1.0
+    return sc * sx, sc * sy
+
+
 def has_warp(cue):
     return cue is not None and any(a or b for a, b in (getattr(cue, "warp", None) or []))
 
@@ -177,7 +189,8 @@ def layer_quad(lay, dst, W, H, out_size=None):
         pts = [t.map(p) for p in pts]
     if has_warp(c):
         ow, oh = out_size if out_size else (W, H)
-        kx, ky = W / max(1, ow), H / max(1, oh)
+        fx, fy = warp_factors(c)
+        kx, ky = W / max(1, ow) * fx, H / max(1, oh) * fy
         pts = [QPointF(p.x() + float(w[0]) * kx, p.y() + float(w[1]) * ky) for p, w in zip(pts, c.warp)]
     return QPolygonF(pts)
 

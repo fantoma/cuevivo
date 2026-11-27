@@ -627,7 +627,9 @@ saved in the show).
 In the fields column: **Size** (slider, value in %, − / + and 100%) to enlarge or shrink the picture, crop in
 source pixels, **rotation** in degrees around the centre of the picture (positive = clockwise; ↺ 90° / ↻ 90° / 0°
 buttons; it works during playback and is part of the presets and keyframes), X/Y offset in output pixels (0,0 = centred),
-perspective as the offset in pixels of the 4 corners. The cue's perspective adds to the 4-corner correction of
+perspective as the offset of the 4 corners in output pixels at 100% size: it grows and shrinks with the size, so
+zooming (wheel, handles, keyframes) keeps the same shape. Shows saved by earlier versions (where the offsets were
+fixed pixels) are converted when opened and look the same. The cue's perspective adds to the 4-corner correction of
 the whole output.
 
 ## Presets

@@ -655,7 +655,7 @@ def _ver_tuple(v):
 
 
 class Show:
-    VERSION = 1
+    VERSION = 2          # 2: prospettiva della cue (warp) relativa alla dimensione (vedi _migrate_warp)
 
     def __init__(self):
         _SHOWS.add(self)
@@ -891,6 +891,24 @@ class Show:
 
     PRESET_TYPES = {"audio": ("audio", "video"), "visual": ("video", "image", "pdf")}
 
+    def _migrate_warp(self):
+        """Show fino alla versione 1: gli angoli della prospettiva erano in px d'uscita fissi; ora valgono alla
+        dimensione 100% e seguono la dimensione. Divisi per la dimensione salvata: l'uscita resta identica."""
+        from .video_output import warp_factors
+
+        def conv(warp, fx, fy):
+            return [[int(round(float(a) / fx)), int(round(float(b) / fy))] for a, b in warp]
+        for c in self.every_cue():
+            if any(a or b for a, b in (getattr(c, "warp", None) or [])):
+                c.warp = conv(c.warp, *warp_factors(c))
+            for p in ((getattr(c, "presets", None) or {}).get("visual") or {}).values():
+                if isinstance(p, dict) and p.get("warp") and any(a or b for a, b in p["warp"]):
+                    class _S:
+                        scale = p.get("scale", c.scale)
+                        scale_x = p.get("scale_x", getattr(c, "scale_x", 100))
+                        scale_y = p.get("scale_y", getattr(c, "scale_y", 100))
+                    p["warp"] = conv(p["warp"], *warp_factors(_S))
+
     def _migrate_global_presets(self, legacy):
         """Show salvati con i preset globali (versione precedente): ogni preset va nelle cue
         a cui serve — target delle cue «Cambia preset» che lo usano, oppure la cue che ha
@@ -980,6 +998,12 @@ class Show:
         s.lists = lists_from_data(data.get("cues", []), data.get("panels"), base)
         s.set_versions_data(data.get("versions"), str(data.get("active_version") or ""), base)
         s._migrate_global_presets(data.get("presets") or {})
+        try:
+            file_version = int(data.get("version") or 0)
+        except (TypeError, ValueError):
+            file_version = Show.VERSION
+        if file_version < 2:
+            s._migrate_warp()
         s.original_path = data.get("original_path")
         s.extra = {k: copy.deepcopy(v) for k, v in data.items() if k not in cls.TOP_KEYS}
         s.load_info = s._check_newer(data)

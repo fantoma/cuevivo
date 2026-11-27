@@ -1420,7 +1420,7 @@ class MediaTabsMixin:
             for j, ax in enumerate(("x", "y")):
                 warp.addWidget(QLabel(ax), i, 1 + j * 2)
                 warp.addWidget(self._warp_spin(i, j), i, 2 + j * 2)
-        f.addRow(tr("Prospettiva (px uscita)"), warp)
+        f.addRow(tr("Prospettiva (px uscita alla dimensione 100%)"), warp)
 
         reset = QPushButton(tr("Reimposta crop, rotazione, posizione, dimensione, deformazione e prospettiva"))
 

@@ -433,7 +433,7 @@
   "Rotazione dell'immagine in uscita attorno al suo centro, in gradi (positivo = senso orario). Vale anche durante la riproduzione, nei preset e nei keyframe.": "Vrtenje izhodne slike okoli njenega središča v stopinjah (pozitivno = v smeri urinega kazalca). Velja tudi med predvajanjem, v prednastavitvah in ključnih sličicah.",
   "Rotazione": "Vrtenje",
   "Spostamento (px uscita)": "Zamik (px izhoda)",
-  "Prospettiva (px uscita)": "Perspektiva (px izhoda)",
+  "Prospettiva (px uscita alla dimensione 100%)": "Perspektiva (izhodne slikovne točke pri velikosti 100 %)",
   "Reimposta crop, rotazione, posizione, dimensione, deformazione e prospettiva": "Ponastavi obrez, vrtenje, položaj, velikost, deformacijo in perspektivo",
   "Spostamento: 0,0 = centrato secondo l'adattamento. Sorgente · crop: trascina i quadratini = dimensione, Alt+trascina = proporzioni (deformazione), Ctrl+trascina = crop, Maiusc = simmetrico, rotella = dimensione. Anteprima dell'uscita: trascina = sposta, rotella = dimensione. Le modifiche valgono anche durante la riproduzione.": "Zamik: 0,0 = sredinsko glede na prilagoditev. Vir · obrez: vleka ročic = velikost, Alt+vleka = razmerja (deformacija), Ctrl+vleka = obrez, Shift = simetrično, kolešček = velikost. Predogled izhoda: vleka = premik, kolešček = velikost. Spremembe veljajo tudi med predvajanjem.",
   "Durata fade": "Trajanje fade-a",

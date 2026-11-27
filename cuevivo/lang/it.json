@@ -433,7 +433,7 @@
   "Rotazione dell'immagine in uscita attorno al suo centro, in gradi (positivo = senso orario). Vale anche durante la riproduzione, nei preset e nei keyframe.": "Rotazione dell'immagine in uscita attorno al suo centro, in gradi (positivo = senso orario). Vale anche durante la riproduzione, nei preset e nei keyframe.",
   "Rotazione": "Rotazione",
   "Spostamento (px uscita)": "Spostamento (px uscita)",
-  "Prospettiva (px uscita)": "Prospettiva (px uscita)",
+  "Prospettiva (px uscita alla dimensione 100%)": "Prospettiva (px uscita alla dimensione 100%)",
   "Reimposta crop, rotazione, posizione, dimensione, deformazione e prospettiva": "Reimposta crop, rotazione, posizione, dimensione, deformazione e prospettiva",
   "Spostamento: 0,0 = centrato secondo l'adattamento. Sorgente · crop: trascina i quadratini = dimensione, Alt+trascina = proporzioni (deformazione), Ctrl+trascina = crop, Maiusc = simmetrico, rotella = dimensione. Anteprima dell'uscita: trascina = sposta, rotella = dimensione. Le modifiche valgono anche durante la riproduzione.": "Spostamento: 0,0 = centrato secondo l'adattamento. Sorgente · crop: trascina i quadratini = dimensione, Alt+trascina = proporzioni (deformazione), Ctrl+trascina = crop, Maiusc = simmetrico, rotella = dimensione. Anteprima dell'uscita: trascina = sposta, rotella = dimensione. Le modifiche valgono anche durante la riproduzione.",
   "Durata fade": "Durata fade",
