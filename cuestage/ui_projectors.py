@@ -223,7 +223,12 @@ class ProjectorsDialog(QDialog):
         self.search_btn.setEnabled(False)
         self.search_btn.setText(tr("Ricerca in corso…"))
         box = {}
-        th = threading.Thread(target=lambda: box.update(r=self._discover_fn()), daemon=True)
+        def run():
+            try:
+                box["r"] = self._discover_fn()
+            except Exception as e:                       # la ricerca non deve mai bloccare la finestra
+                box["err"] = e
+        th = threading.Thread(target=run, daemon=True)
         th.start()
         loop = QEventLoop()
         t = QTimer()
@@ -233,6 +238,9 @@ class ProjectorsDialog(QDialog):
         t.stop()
         self.search_btn.setEnabled(True)
         self.search_btn.setText(tr("🔍 Cerca proiettori in rete"))
+        if "err" in box:
+            self.result.setPlainText(tr("Ricerca non riuscita: {0}", box["err"]))
+            return []
         known = {(p.get("host") or "").strip() for p in self.items}
         found = [r for r in box.get("r") or [] if r["host"] not in known]
         if not found:
@@ -251,7 +259,7 @@ class ProjectorsDialog(QDialog):
 
     @staticmethod
     def _discover_fn():
-        from ..projectors import discover_pjlink
+        from .projectors import discover_pjlink
         return discover_pjlink()
 
     def _pick_found(self, found):

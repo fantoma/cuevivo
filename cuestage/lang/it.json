@@ -2227,6 +2227,7 @@
   "{0} (driver mancante)": "{0} (driver mancante)",
   "Aggiungi un proiettore con «Aggiungi».": "Aggiungi un proiettore con «Aggiungi».",
   "Proiettore {0}": "Proiettore {0}",
+  "Ricerca non riuscita: {0}": "Ricerca non riuscita: {0}",
   "Nessun proiettore nuovo trovato in rete (PJLink, porta 4352).": "Nessun proiettore nuovo trovato in rete (PJLink, porta 4352).",
   "Aggiunti {0} proiettori (driver PJLink): controlla nome e password.": "Aggiunti {0} proiettori (driver PJLink): controlla nome e password.",
   "con password": "con password",

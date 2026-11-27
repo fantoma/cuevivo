@@ -5423,6 +5423,18 @@ def t_menus_osc_profiles(w):
     assert [r["host"] for r in added] == ["10.1.1.20"]
     assert pd.result_projectors()[0]["host"] == "10.1.1.20" and pd.result_projectors()[0]["driver"] == "pjlink"
     assert pd._search() == []                            # già in elenco: non si ripete
+    # la funzione vera (import del modulo) con la ricerca di rete sostituita; un errore non blocca la finestra
+    from cuestage import projectors as _pj
+    _orig = _pj.discover_pjlink
+    _pj.discover_pjlink = lambda: [{"host": "10.1.1.21", "mac": "", "name": "", "auth": True}]
+    try:
+        del pd._discover_fn
+        assert [r["host"] for r in pd._search()] == ["10.1.1.21"]
+        pd._discover_fn = lambda: 1 / 0
+        assert pd._search() == [] and pd.search_btn.isEnabled()
+        assert "ZeroDivisionError" in pd.result.toPlainText() or "division" in pd.result.toPlainText()
+    finally:
+        _pj.discover_pjlink = _orig
     pd.close()
 
 

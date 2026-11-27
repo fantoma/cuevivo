@@ -2227,6 +2227,7 @@
   "{0} (driver mancante)": "{0} (manjka gonilnik)",
   "Aggiungi un proiettore con «Aggiungi».": "Dodajte projektor z »Dodaj«.",
   "Proiettore {0}": "Projektor {0}",
+  "Ricerca non riuscita: {0}": "Iskanje ni uspelo: {0}",
   "Nessun proiettore nuovo trovato in rete (PJLink, porta 4352).": "V omrežju ni bil najden noben nov projektor (PJLink, vrata 4352).",
   "Aggiunti {0} proiettori (driver PJLink): controlla nome e password.": "Dodanih projektorjev: {0} (gonilnik PJLink): preverite ime in geslo.",
   "con password": "z geslom",

@@ -2227,6 +2227,7 @@
   "{0} (driver mancante)": "{0} (driver missing)",
   "Aggiungi un proiettore con «Aggiungi».": "Add a projector with “Add”.",
   "Proiettore {0}": "Projector {0}",
+  "Ricerca non riuscita: {0}": "Search failed: {0}",
   "Nessun proiettore nuovo trovato in rete (PJLink, porta 4352).": "No new projector found on the network (PJLink, port 4352).",
   "Aggiunti {0} proiettori (driver PJLink): controlla nome e password.": "Added {0} projectors (PJLink driver): check name and password.",
   "con password": "with password",
