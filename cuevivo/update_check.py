@@ -208,6 +208,14 @@ class UpdateChecker(QObject):
         lab = self.label
         if lab is None:
             return
+        try:
+            from shiboken6 import isValid
+        except ImportError:                  # pragma: no cover
+            def isValid(_o):
+                return True
+        if not (isValid(lab) and isValid(self.window)):
+            self.label = None                # finestra o barra dei menu già chiuse (posizionamento in ritardo)
+            return
         mb = self.window.menuBar()
         help_menu = getattr(self.window, "help_menu", None)
         g = mb.actionGeometry(help_menu.menuAction()) if help_menu is not None else None

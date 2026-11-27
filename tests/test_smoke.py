@@ -2489,8 +2489,20 @@ def t_grid_move_between(w):
         cv.mouseMoveEvent(QMouseEvent(QEvent.MouseMove, lp, QPointF(gpos), Qt.NoButton, Qt.LeftButton, Qt.NoModifier))
         cv.mouseReleaseEvent(QMouseEvent(QEvent.MouseButtonRelease, lp, QPointF(gpos), Qt.LeftButton, Qt.NoButton, Qt.NoModifier))
         run(0.1)
+    # finestra larga: il tab della MAIN deve essere visibile nella barra (con caratteri larghi la barra scorre)
+    _old_size = w.size()
+    w.resize(max(w.width(), 1700), w.height())
+    run(0.2)
+    w._update_tabs()
+    run(0.1)
+    if not bar.rect().contains(bar.tabRect(0).center()):
+        bar.setUsesScrollButtons(False)
+        bar.setElideMode(Qt.ElideRight)
+        run(0.1)
+    info = (bar.isVisible(), bar.rect(), bar.tabRect(0), bar.count(), sh.view, w.width())
+    assert bar.rect().contains(bar.tabRect(0).center()), info
     drag(x, bar.mapToGlobal(bar.tabRect(0).center()))
-    assert x in sh.lists[0].cues and x not in p2.cues
+    assert x in sh.lists[0].cues and x not in p2.cues, info
     # gruppo aperto: la casella trascinata sulla barra del gruppo esce dal gruppo
     w.grid.open_group(h)
     run(0.1)
@@ -2590,6 +2602,8 @@ def t_grid_move_between(w):
     w.move_cues_to(1)
     assert g in p1.cues and m1 in p1.cues and m2 in p1.cues and m1.group == g.id
     w.show_data.dirty = False
+    w.resize(_old_size)
+    run(0.1)
 
 
 def t_list_ctrl_copy(w):
