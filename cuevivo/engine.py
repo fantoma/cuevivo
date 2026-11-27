@@ -479,6 +479,9 @@ class KeyframeMixin:
             prev = getattr(self, "_mk_pos", None)
         if prev is None:
             prev = float(self.cue.start or 0) - 0.001          # un marker sull'IN scatta all'avvio
+        from .markers import LOOP_BACK_MIN
+        if pos < prev and prev - pos < LOOP_BACK_MIN:
+            return                                             # audio non ancora ripartito: si aspetta
         self._mk_pos = pos
         from .markers import due_markers
         for m, dur in due_markers(self._marker_items(pos), prev, pos):

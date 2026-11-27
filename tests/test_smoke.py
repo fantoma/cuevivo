@@ -5271,6 +5271,11 @@ def t_marker_pause(w):
     volta sola), il GO la fa ripartire invece di mandare la cue successiva; poi il GO torna normale."""
     from PySide6.QtCore import Qt
     from cuevivo.i18n import tr
+    from cuevivo.markers import due_markers
+    its = [(1.0, 0, {"name": "A"}), (2.0, 0, {"name": "B"}), (5.0, 0, {"name": "C"})]
+    assert due_markers(its, 5.0005, 5.0) == []                     # appena indietro: nessun marker
+    assert [m["name"] for m, _d in due_markers(its, 6.0, 1.5)] == ["A"]    # giro del loop: sì
+    assert [m["name"] for m, _d in due_markers(its, 1.5, 2.5)] == ["B"]
     sh = Show()
     sh.settings["output_fullscreen"] = False
     a = tone("mpause.wav", 9)
@@ -5298,12 +5303,22 @@ def t_marker_pause(w):
         assert nxt.id not in w.ctrl.instances                # l'azione della destinazione aspetta la ripresa
         w._update_standby()
         assert w.standby.text() == tr("⏸ {0}: GO = riprendi", c.label())
+        # scheda audio reale (Windows, macOS): al primo controllo dopo il GO l'audio può non essere ancora andato
+        # avanti (posizione = punto d'arrivo, appena prima di quella ricordata): niente marker che riscattano
+        w.ctrl.audio.paused_all = True
         w.go()                                               # il GO riprende la cue, non manda la successiva
+        run(0.3)
+        assert not inst.paused and inst.marker_hold is None, (inst.paused, inst.marker_hold, inst.position())
+        w.ctrl.audio.paused_all = False
         # (wait_until: le macchine lente di GitHub, es. Windows, hanno tempi più lunghi)
         assert wait_until(lambda: not inst.paused and inst.marker_hold is None, 4), (inst.paused, inst.marker_hold)
         assert after.id not in w.ctrl.instances
-        assert wait_until(lambda: inst.position() > 5.1 and nxt.id in w.ctrl.instances, 4), \
-            (inst.position(), nxt.id in w.ctrl.instances)                   # alla ripresa C esegue la sua azione
+        v_ = inst.voice
+        assert wait_until(lambda: inst.position() > 5.1 and nxt.id in w.ctrl.instances, 6), \
+            (inst.position(), nxt.id in w.ctrl.instances, "voce:", v_.paused, v_.done, v_.pos, v_.played,
+             "motore:", w.ctrl.audio.paused_all, w.ctrl.paused_all,
+             [(k, o.null, o.cb_count) for k, o in w.ctrl.audio.outputs.items()],
+             [m for _t, m in list(w.ctrl.audio.errors)[-3:]])               # alla ripresa C esegue la sua azione
         w.ctrl.stop_cue(nxt.id, 0.0)
         assert wait_until(lambda: nxt.id not in w.ctrl.instances, 4)
         run(0.3)

@@ -313,10 +313,17 @@ def find_marker(markers, key):
     return next((m for m in markers if isinstance(m, dict) and m.get("name") == key), None)
 
 
+LOOP_BACK_MIN = 0.05     # s: un passo indietro più piccolo non è un giro del loop
+
+
 def due_markers(items, prev, pos):
     """Azioni da eseguire passando dalla posizione prev alla pos del file (anche al giro del loop).
     items: [(tempo di partenza, durata, marker)]; restituisce [(marker, durata)] in ordine."""
     out = []
+    if pos < prev and prev - pos < LOOP_BACK_MIN:
+        # appena indietro (es. dopo «vai al marker» l'audio di una scheda vera non è ancora andato avanti):
+        # non è un giro del loop, nessun marker
+        return out
     for t, dur, m in items or ():
         if pos >= prev:
             if prev < t <= pos:

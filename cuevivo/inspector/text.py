@@ -20,15 +20,15 @@ class TextTabMixin:
         w = QWidget()
         outer = QHBoxLayout(w)
         left = QVBoxLayout()
-        # --- contenuto
-        top = QHBoxLayout()
+        # --- contenuto (le righe vanno a capo se manca spazio: 1366 px, caratteri larghi come su Windows)
+        from ..ui_elide import FlowLayout, field_group
+        top = FlowLayout()
         mc = QComboBox()
         mc.addItem(tr("Sequenza di frasi: una per GO (sottotitoli)"), "sequence")
         mc.addItem(tr("Testo libero: tutto insieme"), "free")
         mc.addItem(tr("Sottotitoli a tempo (SRT) agganciati a una cue audio/video"), "srt")
         mc.setCurrentIndex(max(0, mc.findData(cue.text_mode)))
-        top.addWidget(QLabel(tr("Modalità")))
-        top.addWidget(mc, 1)
+        top.addWidget(field_group(QLabel(tr("Modalità")), mc))
         imp = QPushButton(tr("Importa .txt / .srt…"))
         top.addWidget(imp)
         left.addLayout(top)
@@ -161,14 +161,13 @@ class TextTabMixin:
             f.addRow("", nm)
         right.addLayout(f)
         # --- anteprima
-        prow = QHBoxLayout()
-        prow.addWidget(QLabel(tr("Anteprima sottotitolo") if cue.text_mode == "srt" else tr("Anteprima frase")))
+        prow = FlowLayout()
         pn = QSpinBox()
         pn.setRange(1, 1)
-        prow.addWidget(pn)
+        prow.addWidget(field_group(QLabel(tr("Anteprima sottotitolo") if cue.text_mode == "srt"
+                                          else tr("Anteprima frase")), pn))
         live = QPushButton(tr("Mostra in uscita da questa frase"))
         prow.addWidget(live)
-        prow.addStretch(1)
         prev = QLabel()
         prev.setFixedSize(320, 180)
         prev.setStyleSheet("background:#111;border:1px solid #444;")
@@ -287,15 +286,16 @@ class TextTabMixin:
         """Sequenza di frasi: memorizza i tempi a ogni GO (sul file di una cue audio/video agganciata),
         poi «Tempi e SRT…» per correggerli, esportarli o trasformare la cue in sottotitoli a tempo."""
         from ..model import TYPE_LABELS
+        from ..ui_elide import FlowLayout, field_group
         sh = self.show_fn()
-        row = QHBoxLayout()
+        row = FlowLayout()          # va a capo se manca spazio (1366 px, caratteri larghi come su Windows)
         cb = QCheckBox(tr("Memorizza i tempi a ogni GO"))
         cb.setChecked(bool(cue.text_rec))
         cb.setToolTip(tr("Mentre la cue va (prova o spettacolo) ogni frase registra quando compare e quando "
                          "sparisce; i tempi vecchi di quella frase vengono sostituiti"))
         cb.toggled.connect(lambda on: (setattr(cue, "text_rec", on), self._emit()))
         row.addWidget(cb)
-        row.addWidget(QLabel(tr("sul file di")))
+        ref_label = QLabel(tr("sul file di"))
         ref = QComboBox()
         ref.addItem(tr("— nessuna: dall'avvio della cue —"), "")
         for lst in sh.lists:
@@ -310,7 +310,7 @@ class TextTabMixin:
         ref.setToolTip(tr("Cue audio/video a cui agganciare i tempi: deve essere già partita quando parte "
                           "questa cue (per esempio subito prima, con questa «con la precedente»)"))
         ref.currentIndexChanged.connect(lambda k: (setattr(cue, "srt_target", ref.itemData(k) or ""), self._emit()))
-        row.addWidget(ref, 1)
+        row.addWidget(field_group(ref_label, ref))
         info = QLabel()
         info.setStyleSheet("color:#999;")
         row.addWidget(info)

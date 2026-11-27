@@ -850,12 +850,22 @@ class ActivePanel(QWidget):
             tx = r.left() + 8
             show = self.ctrl.show
             lst, _ = show.list_of(cue.id) if hasattr(show, "list_of") else (None, -1)
+            # spazio per il nome: a destra c'è il tempo; al nome restano almeno alcuni caratteri
+            data = _marker_bar_data(self.ctrl, cue, x) if kind != "wait" else None
+            right_txt = (("⏸ " if (x.paused or self.ctrl.paused_all) else "") + _bar_text(x)) if data is not None else ""
+            p.setFont(f)
+            rw = p.fontMetrics().horizontalAdvance(right_txt) + 12 if right_txt else 0
+            p.setFont(fb)
+            name_end = min(r.right() - 72, r.left() + 8 + r.width() - 92 - rw)
+            min_name = p.fontMetrics().horizontalAdvance(f"{TYPE_ICONS.get(cue.type, '')}  {cue.number or 'X'}…") + 4
             if lst is not None and len(show.lists) > 1:
-                # etichetta della lista (MAIN / nome del PANEL)
+                # etichetta della lista (MAIN / nome del PANEL): si accorcia lei se lo spazio non basta al nome
                 fs = QFont(fb)
                 fs.setPointSizeF(max(6.0, fb.pointSizeF() * 0.85))
                 p.setFont(fs)
-                name = lst.name if len(lst.name) <= 16 else lst.name[:15] + "…"
+                room = name_end - tx - 6 - min_name - 12
+                name = p.fontMetrics().elidedText(lst.name if len(lst.name) <= 16 else lst.name[:15] + "…",
+                                                  Qt.ElideRight, int(max(0, room)))
                 tw = p.fontMetrics().horizontalAdvance(name) + 12
                 badge = QRectF(tx, r.top() + 3, tw, 16)
                 p.setPen(Qt.NoPen)
@@ -868,12 +878,7 @@ class ActivePanel(QWidget):
                 p.setFont(fb)
             p.setPen(QColor(235, 235, 240))
             # nome della cue con i puntini: non deve coprire il tempo scritto a destra sulla stessa riga
-            data = _marker_bar_data(self.ctrl, cue, x) if kind != "wait" else None
-            right_txt = (("⏸ " if (x.paused or self.ctrl.paused_all) else "") + _bar_text(x)) if data is not None else ""
-            p.setFont(f)
-            rw = p.fontMetrics().horizontalAdvance(right_txt) + 12 if right_txt else 0
-            p.setFont(fb)
-            tr_ = QRectF(tx, r.top() + 2, max(0.0, min(r.right() - 72, r.left() + 8 + r.width() - 92 - rw) - tx), 18)
+            tr_ = QRectF(tx, r.top() + 2, max(0.0, name_end - tx), 18)
             shown = p.fontMetrics().elidedText(f"{TYPE_ICONS.get(cue.type, '')}  {cue.label()}", Qt.ElideRight,
                                                int(max(0, tr_.width())))
             p.drawText(tr_, Qt.AlignLeft | Qt.AlignVCenter, shown)
