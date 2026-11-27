@@ -3,11 +3,32 @@ con il riquadro di ritaglio da trascinare. I valori sono in pixel del sorgente."
 from .i18n import tr
 from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QImage, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import (QCheckBox, QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget)
 
 from . import keyframes as kf
 from .media import fmt_time
-from .video_output import Layer, corner_transform, layer_geometry, layer_quad, render
+from .video_output import Layer, corner_transform, layer_geometry, layer_quad, render, warp_factors
+
+SNAP_DIVS = (2, 3, 4, 5, 6, 8)      # Snap: guide ogni 1/n dello schermo
+SNAP_PX = 10                        # distanza (px della vista) entro cui una maniglia si aggancia
+
+
+def snap_points(w, h, n):
+    """Intersezioni della griglia 1/n sul quadro w×h (con n=0: solo i 4 angoli del quadro, sempre attivi)."""
+    pts = [(x, y) for x in (0.0, w) for y in (0.0, h)]
+    if n and n > 1:
+        pts += [(w * i / n, h * j / n) for i in range(n + 1) for j in range(n + 1)]
+    return pts
+
+
+def snap_point(pt, w, h, n, radius=SNAP_PX):
+    """pt (QPointF sul quadro) agganciato all'intersezione più vicina entro radius; altrimenti invariato."""
+    best = None
+    for x, y in snap_points(w, h, n):
+        d = (x - pt.x()) ** 2 + (y - pt.y()) ** 2
+        if d <= radius ** 2 and (best is None or d < best[0]):
+            best = (d, QPointF(x, y))
+    return best[1] if best else pt
 
 EDIT_KEY = "__edit__"   # layer temporaneo mostrato sull'uscita durante la modifica
 
@@ -418,6 +439,7 @@ class OutputFrameView(QWidget):
         self.image_fn = image_fn   # -> fermo immagine a piena risoluzione (o None)
         self.state_fn = lambda: cue
         self.locked_fn = lambda: None
+        self.snap_fn = lambda: 0        # Snap: n della griglia 1/n (0 = spento: solo gli angoli del quadro)
         self.drag = None
         self.setMinimumSize(240, 100)
         self.setMouseTracking(True)
@@ -488,6 +510,13 @@ class OutputFrameView(QWidget):
         _, dst, (quad, t) = self._geometry()
         poly = t.map(quad)
         p.setRenderHint(QPainter.Antialiasing)
+        n = self.snap_fn()
+        if n and n > 1:                    # guide ogni 1/n dello schermo (sul quadro, con la correzione angoli)
+            ft = corner_transform(w, h, self.comp.corners, ox, oy)
+            p.setPen(QPen(QColor(255, 210, 60, 150), 1, Qt.DotLine))
+            for i in range(1, n):
+                p.drawLine(ft.map(QPointF(w * i / n, 0)), ft.map(QPointF(w * i / n, h)))
+                p.drawLine(ft.map(QPointF(0, h * i / n)), ft.map(QPointF(w, h * i / n)))
         p.setPen(QPen(QColor(80, 200, 255), 1.2, Qt.DashLine))
         p.setBrush(Qt.NoBrush)
         p.drawPolygon(poly)
@@ -552,11 +581,17 @@ class OutputFrameView(QWidget):
             if lay is None:
                 return
             _, dst = layer_geometry(lay, lay.image, w, h, self.comp.out_size)
-            base = [dst.topLeft(), dst.topRight(), dst.bottomRight(), dst.bottomLeft()][kind]
             warp = [list(x) for x in (c.warp or [[0, 0]] * 4)]
-            from .video_output import warp_factors
+            while len(warp) < 4:
+                warp.append([0, 0])
             fx, fy = warp_factors(lay.cue or c)            # angoli in px d'uscita alla dimensione 100%
-            warp[kind] = [int(round((pt.x() - base.x()) * ow / w / fx)), int(round((pt.y() - base.y()) * oh / h / fy))]
+            kx, ky = w / max(1, ow) * fx, h / max(1, oh) * fy
+            # angolo senza la prospettiva (con la rotazione): quello attuale meno lo spostamento attuale
+            cur_w = (getattr(lay.cue, "warp", None) or [[0, 0]] * 4)[kind]
+            q = layer_quad(lay, dst, w, h, self.comp.out_size).at(kind)
+            base = QPointF(q.x() - float(cur_w[0]) * kx, q.y() - float(cur_w[1]) * ky)
+            pt = snap_point(pt, w, h, self.snap_fn())     # Snap: intersezioni 1/n; angoli del quadro sempre
+            warp[kind] = [int(round((pt.x() - base.x()) / kx)), int(round((pt.y() - base.y()) / ky))]
             c.warp = warp
         self.changed.emit()
         self.update()
@@ -629,6 +664,30 @@ class CropPanel(QWidget):
         self.keep.setChecked(bool(settings_fn().get("edit_keep_aspect", True)))
         self.keep.toggled.connect(lambda on: settings_fn().__setitem__("edit_keep_aspect", bool(on)))
         top.addWidget(self.keep)
+        self.snap = QCheckBox(tr("Snap"))
+        self.snap.setToolTip(tr("Snap: nell'uscita mostra le guide ogni frazione di schermo scelta e aggancia le "
+                                "maniglie degli angoli alle intersezioni.\nAgli angoli del quadro intero le "
+                                "maniglie si agganciano sempre."))
+        self.snap.setChecked(bool(settings_fn().get("edit_snap", False)))
+        self.snap_div = QComboBox()
+        for n in SNAP_DIVS:
+            self.snap_div.addItem(f"1/{n}", n)
+        try:
+            self.snap_div.setCurrentIndex(SNAP_DIVS.index(int(settings_fn().get("edit_snap_div", 4))))
+        except (ValueError, TypeError):
+            self.snap_div.setCurrentIndex(SNAP_DIVS.index(4))
+        self.snap_div.setToolTip(self.snap.toolTip())
+
+        def snap_changed(*_a):
+            settings_fn()["edit_snap"] = bool(self.snap.isChecked())
+            settings_fn()["edit_snap_div"] = int(self.snap_div.currentData())
+            self.snap_div.setEnabled(self.snap.isChecked())
+            self.out_view.update()
+        self.snap.toggled.connect(snap_changed)
+        self.snap_div.currentIndexChanged.connect(snap_changed)
+        self.snap_div.setEnabled(self.snap.isChecked())
+        top.addWidget(self.snap)
+        top.addWidget(self.snap_div)
         self.ratio_btn = QToolButton()
         self.ratio_btn.setText(tr("⟲ Proporzioni"))
         self.ratio_btn.setToolTip(tr("Riporta le proporzioni originali (toglie la deformazione, la dimensione resta)"))
@@ -646,6 +705,7 @@ class CropPanel(QWidget):
         self.out_view = OutputFrameView(comp, cue, self.still)
         self.out_view.state_fn = self.state
         self.out_view.locked_fn = self.locked
+        self.out_view.snap_fn = lambda: int(self.snap_div.currentData()) if self.snap.isChecked() else 0
         self.out_view.changed.connect(self.changed)
 
         self.kbar = KeyframeBar(cue, duration_fn=lambda: self.duration, in_out=cue.type == "video")

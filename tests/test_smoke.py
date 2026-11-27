@@ -5544,6 +5544,83 @@ def t_warp_follows_scale():
     assert Show.from_data(d2, None).main.cues[0].warp[0] == [100, 50]
 
 
+def t_crop_snap(w):
+    """Uscita · rendering: «Snap» a destra di «Mantieni proporzioni» con 1/2…1/8; le maniglie degli angoli si
+    agganciano alle intersezioni (agli angoli del quadro sempre), anche con l'immagine ruotata."""
+    from PySide6.QtCore import QEvent, QPointF, Qt
+    from PySide6.QtGui import QImage, QMouseEvent
+    from cuevivo.i18n import tr
+    from cuevivo.ui_crop import SNAP_DIVS
+    from cuevivo.video_output import corner_transform, layer_geometry, layer_quad
+    img_path = os.path.join(TMP, "snap.png")
+    im = QImage(640, 360, QImage.Format_RGB32)
+    im.fill(0x336699)
+    im.save(img_path)
+    sh = Show()
+    sh.settings["output_fullscreen"] = False
+    c = Cue("image", number="1", name="Img", file=img_path)
+    c.scale = 50.0
+    sh.main.cues[:] = [c]
+    w._set_show(sh)
+    run(0.3)
+    ins = w.inspector
+    ins.set_cue(c)
+    ins.tabs.setCurrentIndex(ins._tab_keys.index("Video / Immagine"))
+    run(0.5)
+    cp = ins.crop_panel
+    ov = cp.out_view
+    top = cp.layout().itemAt(0).layout()
+    order = [top.itemAt(i).widget() for i in range(top.count()) if top.itemAt(i).widget()]
+    assert order.index(cp.snap) == order.index(cp.keep) + 1 and order.index(cp.snap_div) == order.index(cp.snap) + 1
+    assert cp.snap.text() == tr("Snap") and [cp.snap_div.itemText(i) for i in range(cp.snap_div.count())] == \
+        [f"1/{n}" for n in SNAP_DIVS] == ["1/2", "1/3", "1/4", "1/5", "1/6", "1/8"]
+    wait_until(lambda: ov._layer() is not None, 5)
+
+    def corner_canvas(i):
+        lay = ov._layer()
+        ox, oy, cw, ch = ov._area()
+        _, dst = layer_geometry(lay, lay.image, cw, ch, w.comp.out_size)
+        return layer_quad(lay, dst, cw, ch, w.comp.out_size).at(i)
+
+    def drag_corner(i, target):
+        ox, oy, cw, ch = ov._area()
+        t = corner_transform(cw, ch, w.comp.corners, ox, oy)
+        start = t.map(corner_canvas(i))
+        end = t.map(target)
+        for kind, pos, btn, btns in ((QEvent.MouseButtonPress, start, Qt.LeftButton, Qt.LeftButton),
+                                     (QEvent.MouseMove, end, Qt.NoButton, Qt.LeftButton),
+                                     (QEvent.MouseButtonRelease, end, Qt.LeftButton, Qt.NoButton)):
+            app.sendEvent(ov, QMouseEvent(kind, QPointF(pos), QPointF(ov.mapToGlobal(pos.toPoint())), btn, btns,
+                                          Qt.NoModifier))
+        run(0.05)
+        return ov._area()
+
+    def close(a, x, y, tol=1.0):
+        return abs(a.x() - x) <= tol and abs(a.y() - y) <= tol
+    # Snap spento: l'angolo del quadro aggancia sempre; lontano da tutto nessun aggancio
+    cp.snap.setChecked(False)
+    _, _, cw, ch = drag_corner(0, QPointF(5, 4))
+    assert close(corner_canvas(0), 0, 0), corner_canvas(0)
+    _, _, cw, ch = drag_corner(0, QPointF(cw / 4 + 3, ch / 4 - 3))
+    assert not close(corner_canvas(0), cw / 4, ch / 4, 0.5), corner_canvas(0)     # 1/4 non attivo
+    # Snap 1/4: intersezioni della griglia
+    cp.snap.setChecked(True)
+    cp.snap_div.setCurrentIndex(SNAP_DIVS.index(4))
+    assert ov.snap_fn() == 4 and sh.settings["edit_snap"] is True and sh.settings["edit_snap_div"] == 4
+    _, _, cw, ch = drag_corner(2, QPointF(cw * 3 / 4 - 4, ch * 3 / 4 + 3))
+    assert close(corner_canvas(2), cw * 3 / 4, ch * 3 / 4), corner_canvas(2)
+    # anche con l'immagine ruotata la maniglia va dove la si porta
+    c.rotation = 30.0
+    run(0.1)
+    _, _, cw, ch = drag_corner(1, QPointF(cw * 3 / 4 + 2, ch / 4 + 2))
+    assert close(corner_canvas(1), cw * 3 / 4, ch / 4), corner_canvas(1)
+    cp.snap_div.setCurrentIndex(SNAP_DIVS.index(3))
+    assert ov.snap_fn() == 3 and sh.settings["edit_snap_div"] == 3
+    ov.grab()                                                  # disegna le guide senza errori
+    cp.snap.setChecked(False)
+    assert ov.snap_fn() == 0 and not cp.snap_div.isEnabled()
+
+
 def make_pdf(name, n=4):
     """PDF di prova: n pagine A4 orizzontali, ognuna di un colore diverso con il suo numero."""
     from PySide6.QtCore import QMarginsF, QRectF
@@ -6518,6 +6595,7 @@ if __name__ == "__main__":
     check("Menu Audio/Istanze/Periferiche/Lingue, profili OSC (QLC+, editor, JSON), ricerca proiettori", lambda: t_menus_osc_profiles(w))
     check("Pacchetto «cuevivo»: i plugin con «import cuestage» funzionano ancora", t_legacy_package_name)
     check("Prospettiva della cue: segue la dimensione (non sembra ruotare), show precedenti convertiti", t_warp_follows_scale)
+    check("Crop · uscita: Snap 1/2…1/8, guide e maniglie agganciate alle intersezioni", lambda: t_crop_snap(w))
     check("Normalizza: LUFS delle cue, correzione relativa del volume, misuratore in tempo reale", lambda: t_normalize(w))
     check("durante il play: ispettore fermo sulla cue scelta, marker creati e spostati, «Ricomincia da qui»", lambda: t_markers_live(w))
     check("schermo 1366×768: la finestra non esce dallo schermo", lambda: t_small_screen(w))
