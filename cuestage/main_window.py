@@ -724,7 +724,7 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
         self.sublang_menu.aboutToShow.connect(self._fill_sublang)
 
         m = mb.addMenu(tr("Au&dio"))
-        add(m, tr("Audio, OSC e MIDI…"), self.settings_dialog, "Ctrl+,")
+        add(m, tr("Audio, OSC e MIDI…"), lambda: self.settings_dialog(), "Ctrl+,")
         add(m, tr("Bus effetti (riverbero, delay…)…"), self.bus_dialog)
         add(m, tr("Ducking…"), self.ducking_dialog)
 
@@ -903,6 +903,8 @@ class MainWindow(HardwareMixin, ClusterMixin, PlaybackMixin, EditingMixin, Group
     def settings_dialog(self, only=("audio", "osc", "midi"), title=None):
         """Impostazioni: di serie Audio, OSC e MIDI (menu Audio); only=("web",) e only=("instances",) per
         «WEB control» e «Istanze secondarie» del menu Istanze."""
+        if not isinstance(only, (tuple, list)):      # dal segnale triggered(bool) di un'azione: le schede di serie
+            only = ("audio", "osc", "midi")
         d = SettingsDialog(self.show_data.settings, self.learn_midi, self, rescan_fn=self._rescan_audio,
                            web_fn=self._web_switch, only=only, title=title or tr("Audio, OSC e MIDI"))
         if d.exec():

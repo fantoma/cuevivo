@@ -5320,6 +5320,19 @@ def t_menus_osc_profiles(w):
     d.close()
     dw = SettingsDialog(w.show_data.settings, w.learn_midi, w, only=("web",))
     assert dw.tabs.count() == 1 and dw.tabs.tabBar().isHidden()
+    # dal menu (segnale triggered(bool)): solo Audio, OSC e MIDI, senza Interfaccia web e Istanze
+    seen = []
+    _exec = SettingsDialog.exec
+    SettingsDialog.exec = lambda self: (seen.append([self.tabs.tabText(i) for i in range(self.tabs.count())]), 0)[1]
+    try:
+        audio_m = next(a.menu() for a in w.menuBar().actions() if a.text() == tr("Au&dio"))
+        next(a for a in audio_m.actions() if a.text() == tr("Audio, OSC e MIDI…")).trigger()
+        ist_m = next(a.menu() for a in w.menuBar().actions() if a.text() == tr("I&stanze"))
+        next(a for a in ist_m.actions() if a.text() == tr("WEB control…")).trigger()
+        next(a for a in ist_m.actions() if a.text() == tr("Istanze secondarie…")).trigger()
+    finally:
+        SettingsDialog.exec = _exec
+    assert seen == [[tr("Audio"), "OSC", "MIDI"], [tr("Interfaccia web")], [tr("Istanze")]], seen
     dw.close()
     # profilo QLC+
     assert op.render("qlcplus", "slider", {"path": "/vc/f1", "level": 1}) == ("/vc/f1", "1.0")
