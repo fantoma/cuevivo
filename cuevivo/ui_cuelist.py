@@ -186,21 +186,45 @@ class CueTableView(QTableView):
     STATE_MIN = 110          # spazio minimo per la barra di avanzamento della colonna Stato
     SHRINK = ((C_NAME, 120), (C_TARGET, 80))      # colonne che si stringono (fino a questa larghezza)
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._pref = {}               # larghezze scelte (dall'utente o salvate): quelle che si ricordano
+        self._fitting = False
+        self.horizontalHeader().sectionResized.connect(self._section_resized)
+
+    def _section_resized(self, col, _old, new):
+        if not self._fitting and col != C_STATE:
+            self._pref[col] = int(new)
+
+    def preferred_widths(self, n):
+        """Larghezze da salvare: quelle scelte, non quelle strette solo perché manca spazio."""
+        return [int(self._pref.get(c, self.columnWidth(c))) for c in range(n)]
+
     def fit_columns(self):
+        """Stringe Nome e File/Target solo nella vista (finché manca spazio); con più spazio tornano alla
+        larghezza scelta."""
         hh = self.horizontalHeader()
         avail = self.viewport().width()
-        if avail <= 0:
+        if avail <= 0 or not self.isVisible():
             return
-        fixed = sum(self.columnWidth(c) for c in range(hh.count())
-                    if c != C_STATE and not self.isColumnHidden(c))
-        over = fixed + self.STATE_MIN - avail
-        for col, low in self.SHRINK:
-            if over <= 0:
-                break
-            cut = min(over, max(0, self.columnWidth(col) - low))
-            if cut > 0:
-                self.setColumnWidth(col, self.columnWidth(col) - cut)
-                over -= cut
+        self._fitting = True
+        try:
+            for col, _low in self.SHRINK:
+                want = self._pref.get(col)
+                if want and self.columnWidth(col) != want:
+                    self.setColumnWidth(col, want)
+            fixed = sum(self.columnWidth(c) for c in range(hh.count())
+                        if c != C_STATE and not self.isColumnHidden(c))
+            over = fixed + self.STATE_MIN - avail
+            for col, low in self.SHRINK:
+                if over <= 0:
+                    break
+                cut = min(over, max(0, self.columnWidth(col) - low))
+                if cut > 0:
+                    self.setColumnWidth(col, self.columnWidth(col) - cut)
+                    over -= cut
+        finally:
+            self._fitting = False
 
     def resizeEvent(self, e):
         super().resizeEvent(e)

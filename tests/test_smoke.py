@@ -2002,6 +2002,18 @@ def t_column_widths(w):
     finally:
         w2.show_data.dirty = False
         w2.close()
+    # finestra stretta: Nome si stringe solo nella vista, la larghezza scelta resta (e torna con più spazio)
+    old = w.size()
+    w.resize(700, w.height())
+    run(0.6)
+    assert w.table.columnWidth(C_NAME) < 333, w.table.columnWidth(C_NAME)
+    assert [int(x) for x in _app_settings().value("cuelist_widths")][C_NAME] == 333
+    assert w.table.preferred_widths(C_NAME + 1)[C_NAME] == 333
+    w.resize(max(1600, old.width()), w.height())
+    run(0.6)
+    assert w.table.columnWidth(C_NAME) == 333, w.table.columnWidth(C_NAME)
+    w.resize(old)
+    run(0.3)
     hh.resizeSection(C_NUM, 50)
     hh.resizeSection(C_NAME, 300)
     run(0.6)
